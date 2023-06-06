@@ -4,7 +4,7 @@
 #define MAIN_H
 
 #define WINDOW_WIDTH 1280
-#define WINDOW_HEIGH 800
+#define WINDOW_HEIGHT 800
 
 inline char* 
 getErrorStr(EGLint code)
