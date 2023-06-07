@@ -29,6 +29,33 @@ extern "C"
 
 bool g_running = false;
 
+static void Decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt)
+{
+	char buffer[1024];
+    int ret;
+	
+    ret = avcodec_send_packet(dec_ctx, pkt);
+    if (ret < 0) {
+        fprintf(stderr, "Error sending a packet for decoding\n");
+        return;
+    }
+	
+    while (ret >= 0) {
+        ret = avcodec_receive_frame(dec_ctx, frame);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            return;
+        else if (ret < 0) {
+            fprintf(stderr, "Error during decoding\n");
+            return;
+        }
+		
+        /* the picture is allocated by the decoder. no need to
+           free it */
+		
+		int b = 0;
+    }
+}
+
 int CALLBACK
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -87,7 +114,8 @@ WinMain(HINSTANCE Instance,
 	eglConfigs = new EGLConfig[eglNumConfigs];
 	
 	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
-	
+
+#if 0	
 	{
 		AVFormatContext *pFormatCtx = NULL;
 		if(avformat_open_input(&pFormatCtx, "sample.mp4", NULL, 0) != 0)
@@ -102,7 +130,7 @@ WinMain(HINSTANCE Instance,
 			return -1;
 		}
 		
-		AVCodecParameters *pCodecCtx = NULL;
+		AVCodecContext *pCodecCtx = NULL;
 
 		int videoStream = -1;
 		for(int index = 0;
@@ -122,7 +150,7 @@ WinMain(HINSTANCE Instance,
 			return -1;
 		}
 		
-		pCodecCtx = pFormatCtx->streams[videoStream]->codecpar;
+		pCodecCtx = pFormatCtx->streams[videoStream]->;
 		
 		const AVCodec *pCodec = pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
 		
@@ -150,7 +178,7 @@ WinMain(HINSTANCE Instance,
 		AVFrame *pFrameRGB = NULL;
 		
 		pFrame = av_frame_alloc();
-		pFrameRGB=av_frame_alloc();
+		pFrameRGB = av_frame_alloc();
 		
 		uint8_t *buffer = NULL;
 		int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecCtx->width,
@@ -160,7 +188,114 @@ WinMain(HINSTANCE Instance,
 		av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, buffer, AV_PIX_FMT_RGB24,
 					   pCodecCtx->width, pCodecCtx->height, 1);
 		
+		struct SwsContext *sws_ctx = NULL;
+		int frameFinished;
+		
+		AVPacket *packet = av_packet_alloc();
+		
+#if 0		
+		while(av_read_frame(pFormatCtx, &packet) > 0)
+		{
+			if(packet.stream_index == videoStream)
+			{
+				avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
+				
+				if(frameFinished)
+				{
+					sws_scale(sws_ctx, (uint8_t*)pFrame->data, pFrame->linesize, 0, pCodexCtx->height, pFrameRGB->data, pFrameRGB->linesize);
+					
 		int b = 0;
+				}
+			}
+		}
+		
+		av_free_packet(&packet);
+		#endif
+		
+		int ret;
+		ret = avcodec_send_packet(pCodecCpy, packet);
+		if (ret < 0)
+		{
+		}
+		
+		ret = avcodec_receive_frame(pCodecCpy, pFrameRGB);
+		if(ret >= 0)
+		{
+			
+		}
+		
+		av_frame_unref(pFrame);
+		av_packet_free(&packet);
+	}
+	#endif
+
+	
+	{
+		const AVCodec *codec;
+		AVCodecParserContext *parser;
+		AVCodecContext *c = NULL;
+		AVFrame *frame;
+		
+		int ret;
+		int eof;
+		
+		AVPacket *packet = av_packet_alloc();
+		if(!packet) return -1;
+		
+		codec = avcodec_find_decoder(AV_CODEC_ID_MPEG4);
+		if(!codec) return -1;
+		
+		parser = av_parser_init(codec->id);
+		if(!parser) return -1;
+		
+		c = avcodec_alloc_context3(codec);
+		if(!c) return -1;
+		
+		c->height = 1344;
+		c->width = 768;
+		
+		if(avcodec_open2(c, codec, NULL) < 0)
+		{
+			return -1;
+		}
+		
+		frame = av_frame_alloc();
+		if(!frame) return -1;
+		
+		debug_read_file_result sample = Win32ReadEntireFile("sample.mp4");
+		if(sample.contentSize == 0)
+		{
+			return -1;
+		}
+		
+		uint8_t *cursor = (uint8_t*)sample.contents;
+		uint8_t *endOfFile = (uint8_t*)sample.contents + sample.contentSize;
+		
+		while(cursor < endOfFile)
+		{
+			uint32_t data_size = 4096;
+			while(data_size > 0 || cursor < endOfFile)
+			{
+				ret = av_parser_parse2(parser, c, &packet->data, &packet->size,
+									   cursor, data_size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+				
+				if(ret < 0)
+				{
+					// Error while parsing
+					return -1;
+				}
+				
+				cursor += ret;
+				data_size -= ret;
+				
+				if(packet->size)
+				{
+					Decode(c, frame, packet);
+				}
+			}
+			
+		}
+		
 	}
 	
 	GLuint VA0;
@@ -183,6 +318,7 @@ WinMain(HINSTANCE Instance,
     {
         const char *vertexShaderSource = 
 			"#version 310 es\n"
+			"precision mediump float;\n"
             "in vec3 aPos;\n"
             "void main()\n"
             "{\n"
@@ -250,7 +386,7 @@ WinMain(HINSTANCE Instance,
         glBindBuffer(GL_ARRAY_BUFFER, VB0);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 		
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
@@ -265,9 +401,9 @@ WinMain(HINSTANCE Instance,
 		MSG msg;
         while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
         {
-            ::TranslateMessage(&msg);
-            ::DispatchMessage(&msg);
-            if (msg.message == WM_QUIT)
+			::TranslateMessage(&msg);
+			::DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
                 g_running = false;
         }
 		
@@ -279,8 +415,8 @@ WinMain(HINSTANCE Instance,
 			glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
-            glUseProgram(shaderProgram);
-            glBindVertexArray(VA0);
+			glUseProgram(shaderProgram);
+			glBindVertexArray(VA0);
 			
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		}

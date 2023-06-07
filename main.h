@@ -6,6 +6,12 @@
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 800
 
+struct debug_read_file_result
+{
+		void *contents;
+		   uint32_t contentSize;
+};
+
 inline char* 
 getErrorStr(EGLint code)
 {
@@ -54,6 +60,62 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
     return ::DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+inline debug_read_file_result
+Win32ReadEntireFile(char *filename)
+{
+	debug_read_file_result File = {};
+    
+    void *Result = 0;
+    DWORD BytesRead;
+      uint32_t FileSize32;
+    HANDLE FileHandle = CreateFileA(filename,
+                                    GENERIC_READ,
+                                    FILE_SHARE_READ,
+                                    0,
+                                    OPEN_EXISTING,
+                                    0,
+                                    0);
+    
+    if(FileHandle != INVALID_HANDLE_VALUE)
+    {
+        LARGE_INTEGER FileSize;
+        if(GetFileSizeEx(FileHandle, &FileSize))
+        {
+            // NOTE: Will cause problem for 64bits
+            FileSize32 = (uint32_t)FileSize.QuadPart;
+            Result = VirtualAlloc(0, FileSize.QuadPart, 
+                                  MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+            
+            if(Result)
+            {
+                if(ReadFile(FileHandle, Result, FileSize32, &BytesRead, 0))
+                {
+                    File.contents = Result;
+                    File.contentSize = FileSize32;
+                }
+                else
+                {
+                    VirtualFree(Result, 0, MEM_RELEASE);
+                }
+            }
+            else
+            {
+                // TODO: Logging
+            }
+        }
+        else
+        {
+            // TODO: Logging
+        }
+    }
+    else
+    {
+        // TODO: Logging
+    }
+    
+    return File;
 }
 
 #endif //MAIN_H
