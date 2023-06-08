@@ -35,6 +35,9 @@ static void Decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt)
     int ret;
 	
     ret = avcodec_send_packet(dec_ctx, pkt);
+	
+	av_strerror(ret, buffer, 1024);
+	
     if (ret < 0) {
         fprintf(stderr, "Error sending a packet for decoding\n");
         return;
@@ -42,12 +45,25 @@ static void Decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt)
 	
     while (ret >= 0) {
         ret = avcodec_receive_frame(dec_ctx, frame);
+		
+		av_strerror(ret, buffer, 1024);
+		
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-            return;
+            break;
         else if (ret < 0) {
             fprintf(stderr, "Error during decoding\n");
             return;
         }
+		
+		printf("Frame %c (%d) pts %d dts %d key_frame %d [coded_picture_number %d, display_picture_number %d]\n",
+			   av_get_picture_type_char(frame->pict_type),
+			   dec_ctx->frame_number,
+			   (int32_t)frame->pts,
+			   (int32_t)frame->pkt_dts,
+			   frame->key_frame,
+			   frame->coded_picture_number,
+			   frame->display_picture_number);
+		
 		
         /* the picture is allocated by the decoder. no need to
            free it */
@@ -115,7 +131,7 @@ WinMain(HINSTANCE Instance,
 	
 	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 
-#if 0	
+#if 1	
 	{
 		AVFormatContext *pFormatCtx = NULL;
 		if(avformat_open_input(&pFormatCtx, "sample.mp4", NULL, 0) != 0)
@@ -130,7 +146,7 @@ WinMain(HINSTANCE Instance,
 			return -1;
 		}
 		
-		AVCodecContext *pCodecCtx = NULL;
+		AVCodecParameters *pCodecParam = NULL;
 
 		int videoStream = -1;
 		for(int index = 0;
@@ -143,93 +159,54 @@ WinMain(HINSTANCE Instance,
 				break;
 			}
 		}
-		
 		if(videoStream == -1)
 		{
 			// NO video stream found.
 			return -1;
 		}
 		
-		pCodecCtx = pFormatCtx->streams[videoStream]->;
+		pCodecParam = pFormatCtx->streams[videoStream]->codecpar;
 		
-		const AVCodec *pCodec = pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
-		
+		const AVCodec *pCodec = avcodec_find_decoder(pCodecParam->codec_id);
 		if(pCodec == NULL)
 		{
 			// Unsupported codec
 			return -1;
 		}
 		
-		AVCodecContext* pCodecCpy = avcodec_alloc_context3(pCodec);
+		AVCodecContext* pCodecCtx = avcodec_alloc_context3(pCodec);
 		
-		if(pCodecCpy == NULL)
+		if(pCodecCtx == NULL)
 		{
 			// Copy context failed
 			return -1;
 		}
 		
-		if(avcodec_open2(pCodecCpy, pCodec, NULL) < 0)
+		if(avcodec_open2(pCodecCtx, pCodec, NULL) < 0)
 		{
 			// Could not open codec
 			return -1;
 		}
 		
-		AVFrame *pFrame = NULL;
-		AVFrame *pFrameRGB = NULL;
-		
-		pFrame = av_frame_alloc();
-		pFrameRGB = av_frame_alloc();
-		
-		uint8_t *buffer = NULL;
-		int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, pCodecCtx->width,
-									pCodecCtx->height, 16);
-		buffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
-		
-		av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, buffer, AV_PIX_FMT_RGB24,
-					   pCodecCtx->width, pCodecCtx->height, 1);
-		
-		struct SwsContext *sws_ctx = NULL;
-		int frameFinished;
-		
+		AVFrame *pFrame = av_frame_alloc();
 		AVPacket *packet = av_packet_alloc();
 		
-#if 0		
-		while(av_read_frame(pFormatCtx, &packet) > 0)
+		while(av_read_frame(pFormatCtx, packet) >= 0) 
 		{
-			if(packet.stream_index == videoStream)
+			if(packet->stream_index == videoStream)
 			{
-				avcodec_decode_video2(pCodecCtx, pFrame, &frameFinished, &packet);
-				
-				if(frameFinished)
-				{
-					sws_scale(sws_ctx, (uint8_t*)pFrame->data, pFrame->linesize, 0, pCodexCtx->height, pFrameRGB->data, pFrameRGB->linesize);
-					
-		int b = 0;
-				}
+				Decode(pCodecCtx, pFrame, packet);
 			}
-		}
-		
-		av_free_packet(&packet);
-		#endif
-		
-		int ret;
-		ret = avcodec_send_packet(pCodecCpy, packet);
-		if (ret < 0)
-		{
-		}
-		
-		ret = avcodec_receive_frame(pCodecCpy, pFrameRGB);
-		if(ret >= 0)
-		{
-			
 		}
 		
 		av_frame_unref(pFrame);
 		av_packet_free(&packet);
 	}
+	
 	#endif
 
-	
+
+#if 0	
 	{
 		const AVCodec *codec;
 		AVCodecParserContext *parser;
@@ -242,7 +219,7 @@ WinMain(HINSTANCE Instance,
 		AVPacket *packet = av_packet_alloc();
 		if(!packet) return -1;
 		
-		codec = avcodec_find_decoder(AV_CODEC_ID_MPEG4);
+		codec = avcodec_find_decoder(AV_CODEC_ID_H264);
 		if(!codec) return -1;
 		
 		parser = av_parser_init(codec->id);
@@ -261,13 +238,13 @@ WinMain(HINSTANCE Instance,
 		
 		frame = av_frame_alloc();
 		if(!frame) return -1;
-		
+
 		debug_read_file_result sample = Win32ReadEntireFile("sample.mp4");
 		if(sample.contentSize == 0)
 		{
 			return -1;
 		}
-		
+
 		uint8_t *cursor = (uint8_t*)sample.contents;
 		uint8_t *endOfFile = (uint8_t*)sample.contents + sample.contentSize;
 		
@@ -297,7 +274,8 @@ WinMain(HINSTANCE Instance,
 		}
 		
 	}
-	
+	#endif
+
 	GLuint VA0;
     GLuint shaderProgram;
     GLuint VB0;

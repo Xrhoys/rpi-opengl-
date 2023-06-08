@@ -12,6 +12,15 @@ struct debug_read_file_result
 		   uint32_t contentSize;
 };
 
+struct PMPContext {
+	     int cur_stream;
+	     int num_streams;
+	     int audio_packets;
+	     int current_packet;
+	     uint32_t *packet_sizes;
+	     int packet_sizes_alloc;
+};
+
 inline char* 
 getErrorStr(EGLint code)
 {
