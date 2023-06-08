@@ -1,3 +1,7 @@
 debug/main.*
+debug/main
+debug/linux-main
 debug/vc140.pdb
 debug/sample.mp4
+
+.vscode/
