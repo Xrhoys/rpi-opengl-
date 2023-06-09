@@ -11,8 +11,8 @@ endif
 EXECUTABLE	:= linux-main
 
 # Compiler and Linker
-CC	:= g++
-LD	:= g++
+CC	:= gcc
+LD	:= gcc
 
 # The Target Binary Program
 TARGET	:= linux-main
@@ -31,8 +31,8 @@ INCLUDE		:= $(addprefix -I , $(INCLUDE_DIR))
 LIB		::= $(addprefix -L , $(LIB_DIR))
 
 # Flags, Libraries and Includes
-CXX		  := g++
-CXX_FLAGS :=
+CXX		  := gcc
+CXX_FLAGS := 
 LIBRARIES := -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lGL -lGLU -lEGL -lGLESv2 -lglfw -lpostproc -lswresample -lswscale -lstdc++ -lX11
 vpath %.cpp $(SRC_DIR)
 
@@ -58,6 +58,11 @@ $(BIN)/$(EXECUTABLE): linux_main.cpp
 	mkdir -p ${BIN}
 	$(CXX) $(CXX_FLAGS) -I include $(INCLUDE) $^ $(LIBRARIES) -o $@
 	chmod +x $(BIN)/${EXECUTABLE}
+
+# $(BIN)/$(EXECUTABLE): linux_debug.cpp
+# 	mkdir -p ${BIN}
+# 	$(CXX) -O0 -ggdb -I include $(INCLUDE) $^ $(LIBRARIES) -o $@
+# 	chmod +x $(BIN)/${EXECUTABLE}
 
 install:
 	@echo "** Installing..."

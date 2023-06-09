@@ -21,6 +21,10 @@ extern "C" {
 
 #include "linux_main.h"
 
+struct SwsContext *swsCtx = NULL;
+
+bool g_running = false;
+
 // av_err2str returns a temporary array, This doesn't work in gcc.
 // This function can be used as a replacement for av_err2str.
 static const char *av_make_error(int errnum) {
@@ -46,12 +50,14 @@ void process_xevent(XEvent xev) {
   }
 }
 
-static int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFrame *pFrame, unsigned char *bufs[]) {
+static int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext,
+                         AVFrame *pFrame, unsigned char *bufs[]) {
   // Supply raw packet data as input to a decoder
   int response = avcodec_send_packet(pCodecContext, pPacket);
 
   if (response < 0) {
-    printf("Error while sending a packet to the decoder: %s\n", av_make_error(response));
+    printf("Error while sending a packet to the decoder: %s\n",
+           av_make_error(response));
     return response;
   }
 
@@ -63,26 +69,12 @@ static int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext, AVFra
     if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
       break;
     } else if (response < 0) {
-      printf("Error while receiving a frame from the decoder: %s", av_make_error(response));
+      printf("Error while receiving a frame from the decoder: %s",
+             av_make_error(response));
       return response;
     }
 
     if (response >= 0) {
-      printf("Frame %c (%d) pts %d dts %d key_frame %d [coded_picture_number %d, display_picture_number %d]\n",
-            av_get_picture_type_char(pFrame->pict_type),
-             pCodecContext->frame_number,
-             pFrame->pts,
-             pFrame->pkt_dts,
-             pFrame->key_frame,
-             pFrame->coded_picture_number,
-             pFrame->display_picture_number);
-
-      char frame_filename[1024];
-      snprintf(frame_filename, sizeof(frame_filename), "%s-%d.pgm", "frame", pCodecContext->frame_number);
-      if (pFrame->format != AV_PIX_FMT_YUV420P) {
-        printf("Warning:\n");
-      }
-
       // do stuff with frame
       bufs[pFrame->coded_picture_number] = pFrame->data[0];
       index++;
@@ -119,6 +111,7 @@ int main() {
                          0, 0, NULL, 0, &swa);
 
   XMapWindow(xdisplay, window); // make window visible
+  XSync(xdisplay, window);
   XStoreName(xdisplay, window, "RPI Emulation");
 
   // EGL
@@ -181,9 +174,8 @@ int main() {
 
   // AVcodec stuffs
   char *filename = "./sample.mp4";
-  AVFormatContext *pFormatContext = avformat_alloc_context();
+  AVFormatContext *pFormatContext = NULL;
   avformat_open_input(&pFormatContext, filename, NULL, NULL);
-  printf("Format %s, duration %lld us\n", pFormatContext->iformat->long_name, pFormatContext->duration);
   avformat_find_stream_info(pFormatContext, NULL);
 
   const AVCodec *pCodec = NULL;
@@ -191,8 +183,10 @@ int main() {
   int video_stream_index = -1;
 
   for (int i = 0; i < pFormatContext->nb_streams; i++) {
-    AVCodecParameters *pLocalCodecParameters = pFormatContext->streams[i]->codecpar;
-    const AVCodec *pLocalCodec = avcodec_find_decoder(pLocalCodecParameters->codec_id);
+    AVCodecParameters *pLocalCodecParameters =
+        pFormatContext->streams[i]->codecpar;
+    const AVCodec *pLocalCodec =
+        avcodec_find_decoder(pLocalCodecParameters->codec_id);
 
     // Specific for video and audio
     if (pLocalCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -201,13 +195,10 @@ int main() {
         pCodec = pLocalCodec;
         pCodecParameters = pLocalCodecParameters;
       }
-      printf("Video Codec: Resolution %d x %d\n", pLocalCodecParameters->width, pLocalCodecParameters->height);
     } else if (pLocalCodecParameters->codec_type == AVMEDIA_TYPE_AUDIO) {
-      printf("Audio Codec: %d channels, sample rate %d\n", pLocalCodecParameters->channels, pLocalCodecParameters->sample_rate);
     }
 
     // General
-    printf("\tCodec %s ID %d bit_rate %lld\n", pLocalCodec->long_name, pLocalCodec->id, pLocalCodecParameters->bit_rate);
   }
 
   if (video_stream_index == -1) {
@@ -244,34 +235,146 @@ int main() {
   }
 
   int response = 0;
-  int packets = 8; // TODO: Get the actual amount of packets in the video and set this number to amount of packets in the video
+  int packets = 8; // TODO: Get the actual amount of packets in the video and
+                   // set this number to amount of packets in the video
   unsigned char *bufs[8];
 
   while (av_read_frame(pFormatContext, pPacket) >= 0) {
     // if it's the video stream
     if (pPacket->stream_index == video_stream_index) {
       response = decode_packet(pPacket, pCodecContext, pFrame, bufs);
-      if (response < 0) break;
+      if (response < 0)
+        break;
       // stop it
-      if(--packets <= 0) break;
+      if (--packets <= 0)
+        break;
     }
   }
 
+  GLuint VA0;
+  GLuint shaderProgram;
+  GLuint VB0;
+  GLuint EB0;
+  float vertices[] = {
+      1.0f,  1.0f,  0.0f, // top right
+      1.0f,  -1.0f, 0.0f, // bottom right
+      -1.0f, -1.0f, 0.0f, // bottom left
+      -1.0f, 1.0f,  0.0f, // top left
+  };
+
+  unsigned int indices[] = {
+      0, 1, 3, // first triangle
+      1, 2, 3  // second triangle
+  };
+  const char *vertexShaderSource =
+      "#version 310 es\n"
+      "precision mediump float;\n"
+      "in vec3 aPos;\n"
+      "void main()\n"
+      "{\n"
+      "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+      "}\0";
+
+  GLuint vertexShader;
+  vertexShader = glCreateShader(GL_VERTEX_SHADER);
+
+  glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+  glCompileShader(vertexShader);
+
+  // Check ShaderCompile success
+  int success;
+  char infoLog[512];
+  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+    fprintf(stdout, "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n%s", infoLog);
+  }
+
+  const char *fragmentShaderSource =
+      "#version 310 es\n"
+      "precision mediump float;\n"
+      "out vec4 FragColor;\n"
+      "void main()\n"
+      "{\n"
+      "    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+      "}\0";
+
+  GLuint fragmentShader;
+  fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+  glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+  glCompileShader(fragmentShader);
+
+  // Check ShaderCompile success
+  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+    fprintf(stdout, "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n%s", infoLog);
+  }
+
+  shaderProgram = glCreateProgram();
+
+  glAttachShader(shaderProgram, vertexShader);
+  glAttachShader(shaderProgram, fragmentShader);
+  glLinkProgram(shaderProgram);
+
+  // Check ShaderCompile success
+  glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+  if (!success) {
+    glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+    fprintf(stdout, "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n%s", infoLog);
+  }
+
+  // glDeleteShader(vertexShader);
+  // glDeleteShader(fragmentShader);
+
+  glGenVertexArrays(1, &VA0);
+  glBindVertexArray(VA0);
+  glGenBuffers(1, &VB0);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VB0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+               GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
+
+  // glEnable(GL_DEPTH_TEST);
+
   // X11 loop
-  while (1) {
+  g_running = true;
+  while (g_running) {
     int keycode;
     XEvent xev;
 
+    if (!g_running) {
+      break;
+    }
+
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glUseProgram(shaderProgram);
+    glBindVertexArray(VA0);
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    eglSwapBuffers(eglDisplay, eglSurface);
+
+    // TODO: Make this work - doesn't work
     if (XPending(xdisplay)) {
       if (XCheckWindowEvent(xdisplay, window, NULL, &xev)) {
         process_xevent(xev);
       }
-
-      eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
-
-      eglSwapBuffers(eglDisplay, eglSurface);
     }
   }
+
+  XDestroyWindow(xdisplay, window);
+  XCloseDisplay(xdisplay);
 
   return 0;
 }
