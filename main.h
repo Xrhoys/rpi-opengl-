@@ -6,20 +6,22 @@
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 800
 
-struct debug_read_file_result
+typedef uint32_t b32;
+
+typedef struct debug_read_file_result
 {
 		void *contents;
 		   uint32_t contentSize;
-};
+} debug_read_file_result;
 
-struct PMPContext {
+typedef struct PMPContext {
 	     int cur_stream;
 	     int num_streams;
 	     int audio_packets;
 	     int current_packet;
 	     uint32_t *packet_sizes;
 	     int packet_sizes_alloc;
-};
+} PMPContext;
 
 inline char* 
 getErrorStr(EGLint code)
@@ -65,16 +67,16 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             return 0;
         break;
         case WM_DESTROY:
-        ::PostQuitMessage(0);
+        PostQuitMessage(0);
         return 0;
     }
-    return ::DefWindowProc(hWnd, msg, wParam, lParam);
+    return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
 inline debug_read_file_result
 Win32ReadEntireFile(char *filename)
 {
-	debug_read_file_result File = {};
+	debug_read_file_result File;
     
     void *Result = 0;
     DWORD BytesRead;
@@ -125,6 +127,39 @@ Win32ReadEntireFile(char *filename)
     }
     
     return File;
+}
+
+inline b32
+Win32WriteEntireFile(char *filename, uint32_t memorySize, void* memory)
+{
+	b32 result = 0;
+    
+    HANDLE fileHandle = CreateFileA(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if(fileHandle != INVALID_HANDLE_VALUE)
+    {
+        DWORD bytesWritten;
+        if(WriteFile(fileHandle, memory, memorySize, &bytesWritten, 0))
+        {
+            result = (bytesWritten == memorySize);
+        }
+        else
+        {
+            // TODO: Logging
+			char err[256];
+			FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(),
+						  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), err, 255, NULL);
+			
+			int b = 0;
+        }
+		
+        CloseHandle(fileHandle);
+    }
+    else
+    {
+        // TODO: Logging
+    }
+	
+    return result;
 }
 
 #endif //MAIN_H
