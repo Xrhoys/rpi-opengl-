@@ -66,43 +66,45 @@ void save_frame(uint8_t *buf, int wrap, int xsize, int ysize, int idx) {
 
 int idxx = 0;
 
-int set_buffer(AVPacket *pPacket, AVFormatContext *pFormatContext, uint8_t *buffer, 
-                AVFrame *pFrameRGB, int video_stream_index, AVCodecContext *pCodecContext, AVFrame *pFrame) {
-    int ret;
-    if (pPacket->stream_index != video_stream_index) {
-      return -1;
-    }
+// TODO: Delete
+int set_buffer(AVPacket *pPacket, AVFormatContext *pFormatContext,
+               uint8_t *buffer, AVFrame *pFrameRGB, int video_stream_index,
+               AVCodecContext *pCodecContext, AVFrame *pFrame) {
+  int ret;
+  if (pPacket->stream_index != video_stream_index) {
+    return -1;
+  }
 
-    ret = avcodec_send_packet(pCodecContext, pPacket);
-    if (ret < 0) {
-      printf("Send->Failed to decode packet: %s\n", av_make_error(ret));
-      return -1;
-    }
+  ret = avcodec_send_packet(pCodecContext, pPacket);
+  if (ret < 0) {
+    printf("Send->Failed to decode packet: %s\n", av_make_error(ret));
+    return -1;
+  }
 
-    ret = avcodec_receive_frame(pCodecContext, pFrame);
-    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      
-    } else if (ret < 0) {
-      printf("Receive->Failed to decode packet: %s\n", av_make_error(ret));
-      return -1;
-    }
+  ret = avcodec_receive_frame(pCodecContext, pFrame);
+  if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
 
-    sws_scale(swsCtx, (uint8_t const *const *)pFrame->data, pFrame->linesize, 0,
-              pCodecContext->height, pFrameRGB->data, pFrameRGB->linesize);
+  } else if (ret < 0) {
+    printf("Receive->Failed to decode packet: %s\n", av_make_error(ret));
+    return -1;
+  }
 
-    buffer = pFrameRGB->data[0];
-    //printf("%s", pFrameRGB->data[0]);
-    
+  sws_scale(swsCtx, (uint8_t const *const *)pFrame->data, pFrame->linesize, 0,
+            pCodecContext->height, pFrameRGB->data, pFrameRGB->linesize);
 
-    // save the frame to disk
-    if (++idxx <= 5) {
-      save_frame(pFrameRGB->data[0], pFrameRGB->linesize[0], pFrameRGB->width,
-                 pFrameRGB->height, idxx);
-    }
+  buffer = pFrameRGB->data[0];
+  // printf("%s", pFrameRGB->data[0]);
+
+  // save the frame to disk
+  if (++idxx <= 5) {
+    save_frame(pFrameRGB->data[0], pFrameRGB->linesize[0], pFrameRGB->width,
+               pFrameRGB->height, idxx);
+  }
 
   return 1;
 }
 
+// TODO: Refactor
 static int decode_packet(AVPacket *pPacket, AVCodecContext *pCodecContext,
                          AVFrame *pFrame, unsigned char *bufs[]) {
   // Supply raw packet data as input to a decoder
@@ -286,52 +288,8 @@ int main() {
   }
 
   int response = 0;
-  //int packets = 8; // TODO: Get the actual amount of packets in the video and
+  int packets = 1; // TODO: Get the actual amount of packets in the video and
                    // set this number to amount of packets in the video
-  unsigned char *bufs[8];
-
-  // while (av_read_frame(pFormatContext, pPacket) >= 0) {
-  //   // if it's the video stream
-  //   if (pPacket->stream_index == video_stream_index) {
-  //     response = decode_packet(pPacket, pCodecContext, pFrame, bufs);
-  //     if (response < 0)
-  //       break;
-  //     // stop it
-  //     if (--packets <= 0)
-  //       break;
-  //   }
-  //
-  //   av_packet_unref(pPacket);
-  //   break;
-  // }
-
-  // Unpack the luminense data and set it in RGB format
-  unsigned char *data = new unsigned char[pFrame->width * pFrame->height * 3];
-  for (int x = 0; x < pFrame->width; ++x) {
-    for (int y = 0; y < pFrame->height; ++y) {
-      data[y * pFrame->width * 3 + x * 3] =
-          pFrame->data[0][y * pFrame->linesize[0] + x];
-      data[y * pFrame->width * 3 + x * 3 + 1] =
-          pFrame->data[0][y * pFrame->linesize[0] + x];
-      data[y * pFrame->width * 3 + x * 3 + 2] =
-          pFrame->data[0][y * pFrame->linesize[0] + x];
-    }
-  }
-
-  int frame_width;
-  int frame_height;
-  unsigned char *frame_data;
-
-  frame_width = pFrame->width;
-  frame_height = pFrame->height;
-  frame_data = data;
-
-  uint8_t *frameData;
-  if (posix_memalign((void **)&frameData, 128,
-                     frame_width * frame_height * 4) != 0) {
-    printf("Couldn't allocate frame buffer\n");
-    return 1;
-  }
 
   // avformat_close_input(&pFormatContext);
   // avformat_free_context(pFormatContext);
@@ -379,124 +337,70 @@ int main() {
                           pCodecContext->height, AV_PIX_FMT_RGB24, SWS_BICUBIC,
                           NULL, NULL, NULL);
 
-  // if (!swsCtx)
-  // {
-  //   printf("Couldn't initialize sw scaler\n");
-  //   return false;
-  // }
-
   int idx = 0;
-  // while (av_read_frame(pFormatContext, pPacket) >= 0) {
-  //   if (pPacket->stream_index != video_stream_index) {
-  //     continue;
-  //   }
-  //
-  //   ret = avcodec_send_packet(pCodecContext, pPacket);
-  //   if (ret < 0) {
-  //     printf("Send->Failed to decode packet: %s\n", av_make_error(ret));
-  //     break;
-  //   }
-  //
-  //   ret = avcodec_receive_frame(pCodecContext, pFrame);
-  //   if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-  //     continue;
-  //   } else if (ret < 0) {
-  //     printf("Receive->Failed to decode packet: %s\n", av_make_error(ret));
-  //     break;
-  //   }
-  //
-  //   sws_scale(swsCtx, (uint8_t const *const *)pFrame->data, pFrame->linesize, 0,
-  //             pCodecContext->height, pFrameRGB->data, pFrameRGB->linesize);
-  //
-  //   // save the frame to disk
-  //   // if (++idx <= 5) {
-  //   //   save_frame(pFrameRGB->data[0], pFrameRGB->linesize[0], pFrameRGB->width,
-  //   //              pFrameRGB->height, idx);
-  //   // }
-  // }
-
-  int packets = 1;
-
   uint8_t *frameBuffer;
   while (av_read_frame(pFormatContext, pPacket) >= 0) {
-    set_buffer(pPacket, pFormatContext, frameBuffer, pFrameRGB, video_stream_index, pCodecContext, pFrame);
+    set_buffer(pPacket, pFormatContext, frameBuffer, pFrameRGB,
+               video_stream_index, pCodecContext, pFrame);
 
     if (--packets <= 0)
       break;
   }
 
-  //printf("data->%s", pFrameRGB->data[0] + 1 * pFrameRGB->linesize[0]);
-  //set_buffer(pPacket, pFormatContext, frameBuffer, pFrameRGB, video_stream_index, pCodecContext, pFrame);
-
-  // float vertices[] = {
-  //   // first triangle
-  //   0.5f, 0.5f, 0.0f, // top right
-  //   0.5f, -0.5f, 0.0f, // bottom right
-  //   -0.5f, 0.5f, 0.0f, // top left
-  //   // second triangle
-  //   0.5f, -0.5f, 0.0f, // bottom right
-  //   -0.5f, -0.5f, 0.0f, // bottom left
-  //   -0.5f, 0.5f, 0.0f, // top left
-  // };
-
-  // float vertices[] = {
-  //   0.5f, 0.5f, 0.0f, // top right
-  //   0.5f, -0.5f, 0.0f, // bottom right
-  //   -0.5f, -0.5f, 0.0f, // bottom left
-  //   -0.5f, 0.5f, 0.0f, //top left
-  // };
-
   float vertices[] = {
-    // positions x,y,z          // colors           // texture coords
-     1.0f,  1.0f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 0.0f,   // top right
-     1.0f, -1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 1.0f,   // bottom right
-    -1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   // bottom left
-    -1.0f,  1.0f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 0.0f    // top left 
-};
-
-  unsigned int indices[] = {
-    0, 1, 3, // first triangle
-    1, 2, 3 // second triangle
+      // positions x,y,z          // colors           // texture coords
+      1.0f,  1.0f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, // top right
+      1.0f,  -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, // bottom right
+      -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, // bottom left
+      -1.0f, 1.0f,  0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f  // top left
   };
 
+  unsigned int indices[] = {
+      0, 1, 3, // first triangle
+      1, 2, 3  // second triangle
+  };
 
   unsigned int VBO, VAO, EBO;
   glGenVertexArrays(1, &VAO);
   glGenBuffers(1, &VBO);
   glGenBuffers(1, &EBO);
-  
+
   glBindVertexArray(VAO);
 
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+               GL_STATIC_DRAW);
 
   // position attrib
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
   // color attrib
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
   // texture coord attrib
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(6 * sizeof(float)));
   glEnableVertexAttribArray(2);
 
   // shader
-  const char *vertexShaderSource = "#version 310 es\n"
-			"precision mediump float;\n"
-            "in vec3 aPos;\n"
-            "in vec3 color;\n"
-            "in vec2 tcoord;\n"
-            "out vec3 ocolor;\n"
-            "out vec2 otcoord;\n"
-            "void main()\n"
-            "{\n"
-            "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-            "   ocolor = color;\n"
-            "   otcoord = tcoord;\n"
-            "}\0";
+  const char *vertexShaderSource =
+      "#version 310 es\n"
+      "precision mediump float;\n"
+      "in vec3 aPos;\n"
+      "in vec3 color;\n"
+      "in vec2 tcoord;\n"
+      "out vec3 ocolor;\n"
+      "out vec2 otcoord;\n"
+      "void main()\n"
+      "{\n"
+      "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+      "   ocolor = color;\n"
+      "   otcoord = tcoord;\n"
+      "}\0";
 
   unsigned int vertexShader;
   vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -512,15 +416,15 @@ int main() {
   }
 
   const char *fragShaderSource = "#version 310 es\n"
-			"precision mediump float;\n"
-            "out vec4 FragColor;\n"
-            "in vec3 ocolor;\n"
-            "in vec2 otcoord;\n"
-            "uniform sampler2D tex;\n"
-            "void main()\n"
-            "{\n"
-            "    FragColor = texture(tex, otcoord);\n"
-            "}\0";
+                                 "precision mediump float;\n"
+                                 "out vec4 FragColor;\n"
+                                 "in vec3 ocolor;\n"
+                                 "in vec2 otcoord;\n"
+                                 "uniform sampler2D tex;\n"
+                                 "void main()\n"
+                                 "{\n"
+                                 "    FragColor = texture(tex, otcoord);\n"
+                                 "}\0";
 
   unsigned int fragShader;
   fragShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -549,36 +453,31 @@ int main() {
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                  GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   int swidth, sheight, nrChannels;
-  //unsigned char *sdata = stbi_load("./frame1.ppm", &swidth, &sheight, &nrChannels, 0);
+  // unsigned char *sdata = stbi_load("./frame1.ppm", &swidth, &sheight,
+  // &nrChannels, 0);
   FILE *fpp = fopen("./frame1.raw", "rb");
   fseek(fpp, 0, SEEK_END);
   long fsize = ftell(fpp);
   fseek(fpp, 0, SEEK_SET);
 
-  unsigned char *fstring = (unsigned char*)malloc(fsize + 1);
+  unsigned char *fstring = (unsigned char *)malloc(fsize + 1);
   fread(fstring, fsize, 1, fpp);
   printf("file -> %d", fsize);
   fclose(fpp);
   fstring[fsize] = 0;
 
-
   unsigned int texture;
   glGenTextures(1, &texture);
   glBindTexture(GL_TEXTURE_2D, texture);
-  //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, swidth, sheight, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-  //glGenerateMipmap(GL_TEXTURE_2D);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pFrameRGB->width, pFrameRGB->height, 0, GL_RGB, GL_UNSIGNED_BYTE, pFrameRGB->data[0] + 0 * pFrameRGB->linesize[0]);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pFrameRGB->width, pFrameRGB->height, 0,
+               GL_RGB, GL_UNSIGNED_BYTE,
+               pFrameRGB->data[0] + 0 * pFrameRGB->linesize[0]);
   glGenerateMipmap(GL_TEXTURE_2D);
-
-  // unsigned int EBO;
-  // glGenBuffers(1, &EBO);
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
 
   // X11 loop
   int frameFinished;
@@ -601,7 +500,7 @@ int main() {
     glUseProgram(shaderProgram);
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    
+
     eglSwapBuffers(eglDisplay, eglSurface);
 
     // TODO: Make this work - doesn't work
