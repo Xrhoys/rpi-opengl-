@@ -33,7 +33,7 @@ LIB		::= $(addprefix -L , $(LIB_DIR))
 # Flags, Libraries and Includes
 CXX		  := gcc
 CXX_FLAGS := -O0 -ggdb
-LIBRARIES := -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lGL -lGLU -lEGL -lGLESv2 -lglfw -lpostproc -lswresample -lswscale -lstdc++ -lX11
+LIBRARIES := -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lGL -lGLU -lEGL -lGLESv2 -lpostproc -lswresample -lswscale -lstdc++ -lX11
 vpath %.cpp $(SRC_DIR)
 
 #---------------------------------------------------------------------------------
