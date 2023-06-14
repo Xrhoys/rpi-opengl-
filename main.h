@@ -5,8 +5,22 @@
 
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 800
+#define REFRESH_RATE 120
 
-typedef uint32_t b32;
+typedef int8_t   i8;
+typedef int16_t  i16;
+typedef int32_t  i32;
+typedef int64_t  i64;
+
+typedef uint8_t  u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef float    r32;
+typedef double   r64;
+
+typedef int32_t  b32;
 
 typedef struct debug_read_file_result
 {
@@ -14,14 +28,46 @@ typedef struct debug_read_file_result
 		   uint32_t contentSize;
 } debug_read_file_result;
 
-typedef struct PMPContext {
-	     int cur_stream;
-	     int num_streams;
-	     int audio_packets;
-	     int current_packet;
-	     uint32_t *packet_sizes;
-	     int packet_sizes_alloc;
-} PMPContext;
+u64              g_perfCount;
+LARGE_INTEGER    g_bootCounter;
+LARGE_INTEGER    g_lastCounter;
+u64              lastCycleCount;
+r64              cyclesPerFrame;
+
+typedef struct win32_timer
+{
+		r32 frameStart;
+		r32 elapsed;
+} win32_timer;
+
+inline r32
+Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
+{
+	// NOTE: should g_perfCount be refetched here?
+	r64 endTime   = (r64)end.QuadPart;
+    r64 startTime = (r64)start.QuadPart;
+	r64 perfCount = (r64)g_perfCount;
+	r32 result    = (r32)((endTime - startTime) / perfCount);
+    
+    return result;
+}
+
+inline LARGE_INTEGER
+Win32GetWallClock()
+{
+    LARGE_INTEGER result;
+    QueryPerformanceCounter(&result);
+    return result;
+}
+
+inline r32
+Win32GetLastElapsed(void)
+{
+    LARGE_INTEGER currentCounter = Win32GetWallClock();
+	r32 elapsed = Win32GetSecondsElapsed(g_lastCounter, currentCounter);
+    
+    return elapsed;
+}
 
 inline char* 
 getErrorStr(EGLint code)

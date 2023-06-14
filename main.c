@@ -23,16 +23,17 @@
 
 #define GL_ES_VERSION_3_0 1
 
+
 #include "main.h"
 
   int g_running = 0;
 
 struct SwsContext *swsCtx;
 AVFrame *pFrameRGB;
+	char buffer[1024];
 
 static void Decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt)
 {
-	char buffer[1024];
     int ret;
 	
     ret = avcodec_send_packet(dec_ctx, pkt);
@@ -50,7 +51,7 @@ static void Decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt)
 		av_strerror(ret, buffer, 1024);
 		
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-            break;
+            return;
         else if (ret < 0) {
             fprintf(stderr, "Error during decoding\n");
             return;
@@ -113,8 +114,19 @@ WinMain(HINSTANCE Instance,
     ShowWindow(hwnd, SW_SHOWDEFAULT);
     UpdateWindow(hwnd);
 	
-	if(0)
 	{
+		lastCycleCount = __rdtsc();
+		
+		LARGE_INTEGER counter;
+		LARGE_INTEGER perfCountFrequencyResult;
+		QueryPerformanceCounter(&counter);
+		QueryPerformanceFrequency(&perfCountFrequencyResult);
+		
+		g_bootCounter = counter; 
+		g_lastCounter = counter;
+		g_perfCount = perfCountFrequencyResult.QuadPart;
+	}
+	
 		AVFormatContext *pFormatCtx = NULL;
 		if(avformat_open_input(&pFormatCtx, "sample.mp4", NULL, 0) != 0)
 		{
@@ -201,21 +213,23 @@ WinMain(HINSTANCE Instance,
 			return -1;
 		}
 
-#if 0		
+#if 0
 		while(av_read_frame(pFormatCtx, packet) >= 0) 
 		{
 			if(packet->stream_index == videoStream)
 			{
 				Decode(pCodecCtx, pFrame, packet);
 			}
-		}
-		#endif
-
-		av_frame_unref(pFrame);
-		av_frame_unref(pFrameRGB);
-		av_packet_free(&packet);
 	}
+#endif
 	
+#if 0	
+	av_frame_unref(pFrame);
+	av_frame_unref(pFrameRGB);
+	av_packet_free(&packet);
+	#endif
+
+
 	HDC hdc = GetDC(hwnd);
     EGLDisplay eglDisplay = eglGetDisplay(hdc);
     EGLint eglVersionMajor, eglVersionMinor;
@@ -395,19 +409,43 @@ WinMain(HINSTANCE Instance,
 		if (!g_running)
             break;
 		
-		{ 
+		if(Win32GetLastElapsed() > 1.0f / REFRESH_RATE)
+		{
+			if(av_read_frame(pFormatCtx, packet) >= 0)
+			{
+				if(packet->stream_index == videoStream)
+				{
+					Decode(pCodecCtx, pFrame, packet);
+				}
+				
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pCodecCtx->width, pCodecCtx->height, 0, GL_RGB, GL_UNSIGNED_BYTE, pFrameRGB->data[0]);
+				glGenerateMipmap(GL_TEXTURE_2D);
+			}
+			
 			glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 			glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
 			glUseProgram(shaderProgram);
 			glBindVertexArray(VA0);
-		glBindTexture(GL_TEXTURE_2D, texture);
+			glBindTexture(GL_TEXTURE_2D, texture);
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+			eglSwapBuffers(eglDisplay, eglSurface);
+			
+			{
+				u64 endCycleCounter = __rdtsc();
+				u64 cyclesElapsed   = endCycleCounter - lastCycleCount;
+				cyclesPerFrame      = cyclesElapsed / (1000.0f * 1000.0f);
+				
+				lastCycleCount      = endCycleCounter;
+				g_lastCounter       = Win32GetWallClock();
+			}
 		}
-		
-		eglSwapBuffers(eglDisplay, eglSurface);
-	}
+		}
+	
+	av_frame_unref(pFrame);
+	av_frame_unref(pFrameRGB);
+	av_packet_free(&packet);
 	
     DestroyWindow(hwnd);
     UnregisterClass(wc.lpszClassName, wc.hInstance);
