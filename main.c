@@ -23,7 +23,6 @@
 
 #define GL_ES_VERSION_3_0 1
 
-
 #include "main.h"
 
   int g_running = 0;
@@ -62,38 +61,6 @@ static void Decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt)
 			ret = sws_scale(swsCtx, (const uint8_t* const*)frame->data, frame->linesize,
 							0, frame->height,
 							(uint8_t *const *)pFrameRGB->data, pFrameRGB->linesize);
-
-#if 0			
-			for(int index = 0;
-				index < 6;
-				++index)
-			{
-				// NOTE(Ecy): RGB, 3 bytes pixel
-				uint8_t *cursor = frame->data[index];
-				
-				for(int pixelIndex = 0;
-					pixelIndex < frame->linesize[index];
-					++pixelIndex)
-				{
-					}
-				
-			}
-			#endif
-
-#if 0			
-			if(!frameCreated)
-			{
-				b32 res = Win32WriteEntireFile("image0.raw", 3 * frame->width * frame->height, (void*)pFrameRGB->data[0]);
-				if(!res)
-				{
-					// Write file failed
-					return;
-				}
-				
-				frameCreated = 1;
-			}
-			#endif
-
 		}
     }
 }
@@ -213,23 +180,6 @@ WinMain(HINSTANCE Instance,
 			return -1;
 		}
 
-#if 0
-		while(av_read_frame(pFormatCtx, packet) >= 0) 
-		{
-			if(packet->stream_index == videoStream)
-			{
-				Decode(pCodecCtx, pFrame, packet);
-			}
-	}
-#endif
-	
-#if 0	
-	av_frame_unref(pFrame);
-	av_frame_unref(pFrameRGB);
-	av_packet_free(&packet);
-	#endif
-
-
 	HDC hdc = GetDC(hwnd);
     EGLDisplay eglDisplay = eglGetDisplay(hdc);
     EGLint eglVersionMajor, eglVersionMinor;
@@ -292,18 +242,12 @@ WinMain(HINSTANCE Instance,
 	};
 	
 	{
-		// Import debug sample texture
-		debug_read_file_result file = Win32ReadEntireFile("image0.raw");
-		
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1920, 1080, 0, GL_RGB, GL_UNSIGNED_BYTE, file.contents);
-		glGenerateMipmap(GL_TEXTURE_2D);
 	}
 	
     {
@@ -409,6 +353,7 @@ WinMain(HINSTANCE Instance,
 		if (!g_running)
             break;
 		
+		// NOTE(Ecy): Replace with suggested frame timing
 		if(Win32GetLastElapsed() > 1.0f / REFRESH_RATE)
 		{
 			if(av_read_frame(pFormatCtx, packet) >= 0)

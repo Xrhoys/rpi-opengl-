@@ -7,6 +7,9 @@
 #define WINDOW_HEIGHT 800
 #define REFRESH_RATE 120
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 typedef int8_t   i8;
 typedef int16_t  i16;
 typedef int32_t  i32;
@@ -24,7 +27,7 @@ typedef int32_t  b32;
 
 typedef struct debug_read_file_result
 {
-		void *contents;
+		void     *contents;
 		   uint32_t contentSize;
 } debug_read_file_result;
 
@@ -206,6 +209,30 @@ Win32WriteEntireFile(char *filename, uint32_t memorySize, void* memory)
     }
 	
     return result;
+}
+
+inline b32
+InitFont(GLuint *texture)
+{
+	debug_read_file_result file = Win32ReadEntireFile("font.jpg");
+	
+	uint32_t x;
+	uint32_t y;
+	uint32_t channelsInFile;
+	uint32_t desiredChannels = 4;
+	
+	stbi_uc *image = stbi_load_from_memory((char*)file.contents, file.contentSize, &x, &y, &channelsInFile, desiredChannels);
+	
+	glGenTextures(1, texture);
+	glBindTexture(GL_TEXTURE_2D, *texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, x, y, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	
 }
 
 #endif //MAIN_H
