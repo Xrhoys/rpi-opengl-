@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
   u32 packets = 1; // TODO: Get the actual amount of packets in the video and
                    // set this number to amount of packets in the video
   pFrameRGB = av_frame_alloc();
-  u32 video_stream_index = -1;
+  int video_stream_index = -1;
   int64_t pts;
   
   {
@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
   const AVCodec *pCodec = NULL;
   AVCodecParameters *pCodecParameters = NULL;
 
-  for (u32 i = 0; i < pFormatContext->nb_streams; i++) {
+  for (int i = 0; i < pFormatContext->nb_streams; i++) {
     AVCodecParameters *pLocalCodecParameters =
         pFormatContext->streams[i]->codecpar;
     const AVCodec *pLocalCodec =
@@ -503,7 +503,8 @@ int main(int argc, char *argv[]) {
 
     // Render pipeline
     {
-      glViewport(0, 0, root_w, root_h);
+      // TODO work with multi-monitors
+      // glViewport(0, 0, root_w, root_h);
       glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
 

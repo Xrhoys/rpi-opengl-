@@ -45,7 +45,6 @@ GetTicks()
 {
   u64 ticks = 0;
   u32 a, d;
-  asm("cpuid");
   asm volatile("rdtsc" : "=a" (a), "=d" (d));
 
   return a;
