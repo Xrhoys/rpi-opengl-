@@ -496,6 +496,9 @@ int main(int argc, char *argv[]) {
         Decode(pCodecContext, pFrame, pPacket);
       }
 
+      av_packet_unref(pPacket);
+      av_frame_unref(pFrame);
+
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pFrameRGB->width, pFrameRGB->height, 0, GL_RGB, GL_UNSIGNED_BYTE, pFrameRGB->data[0]);
       glGenerateMipmap(GL_TEXTURE_2D);
     }

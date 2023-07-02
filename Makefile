@@ -18,7 +18,7 @@ LD	:= gcc
 TARGET	:= linux-main
 
 # The Directories, Source, Includes, Objects, Binary and Resources
-MODULES	:= EGL GLES GLES2 GLES3 KHR libavcodec libavdevice libavfilter libavformat libavutil libpostproc libswresample libswscale
+MODULES	:=
 BIN		:= debug
 SRC_DIR		:= src
 INCLUDE_DIR		:= $(addprefix include/,$(MODULES))
@@ -33,7 +33,7 @@ LIB		::= $(addprefix -L , $(LIB_DIR))
 # Flags, Libraries and Includes
 CXX		  := gcc
 CXX_FLAGS := -O2 -ggdb -Wno-write-strings
-LIBRARIES := -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lGL -lGLU -lEGL -lGLESv2 -lpostproc -lswresample -lswscale -lstdc++ -lX11
+LIBRARIES := -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lEGL -lGLESv2 -lpostproc -lswresample -lswscale -lstdc++ -lX11
 vpath %.cpp $(SRC_DIR)
 
 #---------------------------------------------------------------------------------
