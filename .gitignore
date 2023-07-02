@@ -7,3 +7,5 @@ debug/*.raw
 
 .vscode/
 .idea/
+
+data/

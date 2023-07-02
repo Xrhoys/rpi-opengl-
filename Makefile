@@ -18,9 +18,9 @@ LD	:= gcc
 TARGET	:= linux-main
 
 # The Directories, Source, Includes, Objects, Binary and Resources
-MODULES	:= EGL GLES GLES2 GLES3 KHR libavcodec libavdevice libavfilter libavformat libavutil libpostproc libswresample libswscale
+MODULES	:=
 BIN		:= debug
-SRC_DIR		:= $(addprefix ./,$(MODULES))
+SRC_DIR		:= src
 INCLUDE_DIR		:= $(addprefix include/,$(MODULES))
 BUILD_DIR		:= $(addprefix build/,$(MODULES))
 LIB_DIR		:= $(addprefix lib/,$(MODULES))
@@ -32,8 +32,8 @@ LIB		::= $(addprefix -L , $(LIB_DIR))
 
 # Flags, Libraries and Includes
 CXX		  := gcc
-CXX_FLAGS := -O0 -ggdb
-LIBRARIES := -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lGL -lGLU -lEGL -lGLESv2 -lpostproc -lswresample -lswscale -lstdc++ -lX11
+CXX_FLAGS := -O2 -ggdb -Wno-write-strings
+LIBRARIES := -lavcodec -lavdevice -lavfilter -lavformat -lavutil -lEGL -lGLESv2 -lpostproc -lswresample -lswscale -lstdc++ -lX11
 vpath %.cpp $(SRC_DIR)
 
 #---------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ bear: clean all
 
 $(BIN)/$(EXECUTABLE): linux_main.cpp
 	mkdir -p ${BIN}
-	$(CXX) $(CXX_FLAGS) -I include $(INCLUDE) $^ $(LIBRARIES) -o $@
+	$(CXX) $(CXX_FLAGS) $^ $(LIBRARIES) -o $@
 	chmod +x $(BIN)/${EXECUTABLE}
 
 # $(BIN)/$(EXECUTABLE): linux_debug.cpp
