@@ -7,7 +7,6 @@
 #include <X11/Xutil.h>
 
 extern "C" {
-  #define _XOPEN_SOURCE 600 /* for usleep */
   #include <libavcodec/avcodec.h>
   #include <libavdevice/avdevice.h>
   #include <libavfilter/avfilter.h>
