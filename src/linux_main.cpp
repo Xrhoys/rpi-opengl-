@@ -40,6 +40,23 @@ global u32                    root_w,
                               root_border_width, 
                               root_depth;
 
+// Checks if the pix_fmt is YUVJ format, if so, convert it to YUV
+AVPixelFormat set_correct_pixel_format(AVPixelFormat pix_fmt)
+{
+  switch (pix_fmt)
+  {
+    case AV_PIX_FMT_YUVJ420P: 
+      return AV_PIX_FMT_YUV420P;
+    case AV_PIX_FMT_YUVJ422P:
+      return AV_PIX_FMT_YUV422P;
+    case AV_PIX_FMT_YUVJ444P:
+      return AV_PIX_FMT_YUV444P;
+    case AV_PIX_FMT_YUVJ440P:
+      return AV_PIX_FMT_YUV440P;
+    default:
+      return pix_fmt;
+  }
+}
 
 internal void 
 Decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt) 
@@ -339,9 +356,14 @@ int main(int argc, char *argv[]) {
   pFrameRGB->width = pCodecContext->width;
   pFrameRGB->height = pCodecContext->height;
 
+  // Can just pass pCodecContext->pix_fmt into the swsCtx, however, YUVJ has been
+  // depreciated and the scaler will return warnings. This just converts
+  // YUVJ to YUV if needed.
+  AVPixelFormat pixFmt = set_correct_pixel_format(pCodecContext->pix_fmt);
+
   // Read frame and load into texture
   swsCtx = sws_getContext(pCodecContext->width, pCodecContext->height,
-                          AV_PIX_FMT_YUV420P, pCodecContext->width,
+                          pixFmt, pCodecContext->width,
                           pCodecContext->height, AV_PIX_FMT_RGB24, SWS_BICUBIC,
                           NULL, NULL, NULL);
 
