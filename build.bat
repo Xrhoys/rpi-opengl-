@@ -3,7 +3,7 @@
 @set OUT_EXE=main
 @set INCLUDES=/I ..\include\  /I ..
 @set SOURCES=../main.c
-@set LIBS=../lib/libEGL.lib ../lib/libGLESv2.lib ../lib/avcodec.lib ../lib/avformat.lib ../lib/avutil.lib ../lib/avdevice.lib ../lib/avfilter.lib User32.lib ../lib/postproc.lib ../lib/swresample.lib ../lib/swscale.lib
+@set LIBS=../lib/libEGL.lib ../lib/libGLESv2.lib ../lib/avcodec.lib ../lib/avformat.lib ../lib/avutil.lib ../lib/avdevice.lib ../lib/avfilter.lib User32.lib ../lib/postproc.lib ../lib/swresample.lib ../lib/swscale.lib 
 @set DEFINES=-DDEBUG=1
 @set FLAGS=/nologo /Zi /MT -FC
 

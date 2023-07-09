@@ -1,7 +1,6 @@
 #include <windows.h>
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <tchar.h>
 
 #include <libavformat/avformat.h>
@@ -23,9 +22,13 @@
 
 #define GL_ES_VERSION_3_0 1
 
+// NOTE(Ecy): this should be included from the app.h later
+#include "platform.h"
+
+#include "renderer.h"
 #include "main.h"
 
-  int g_running = 0;
+static app_state g_state;
 
 struct SwsContext *swsCtx;
 AVFrame *pFrameRGB;
@@ -89,7 +92,7 @@ WinMain(HINSTANCE Instance,
 		QueryPerformanceCounter(&counter);
 		QueryPerformanceFrequency(&perfCountFrequencyResult);
 		
-		g_bootCounter = counter; 
+		g_bootCounter = counter;
 		g_lastCounter = counter;
 		g_perfCount = perfCountFrequencyResult.QuadPart;
 	}
@@ -221,14 +224,13 @@ WinMain(HINSTANCE Instance,
 	EGLConfig *eglConfigs = (EGLConfig*)malloc(sizeof(EGLConfig) * eglNumConfigs);
 	
 	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
-
-	GLuint VA0;
+	
     GLuint shaderProgram;
-    GLuint VB0;
-	GLuint EB0;
+    
+	GLuint VA0, VB0, EB0, FontV0, FontB0;
 	GLuint texture;
 	
-    float vertices[] = 
+	float vertices[] = 
     {
 		-1.0f, -1.0f, 0.0f, 0.0f, 1.0f, // bottom left
 		1.0f, -1.0f, 0.0f,  1.0f, 1.0f,// bottom right
@@ -240,15 +242,6 @@ WinMain(HINSTANCE Instance,
 		0, 1, 3,   // first triangle
 		1, 2, 3    // second triangle
 	};
-	
-	{
-		glGenTextures(1, &texture);
-		glBindTexture(GL_TEXTURE_2D, texture);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	}
 	
     {
         const char *vertexShaderSource = 
@@ -323,23 +316,40 @@ WinMain(HINSTANCE Instance,
 		
         glGenVertexArrays(1, &VA0);
 		glGenBuffers(1, &VB0);
-        glBindVertexArray(VA0);
+		glGenBuffers(1, &EB0);
+		glGenBuffers(1, &FontB0);
+		glGenBuffers(1, &FontV0);
 		
         glBindBuffer(GL_ARRAY_BUFFER, VB0);
-        glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),  (void*)(3 * sizeof(float)));
-		
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+		
+		glBindBuffer(GL_ARRAY_BUFFER, FontV0);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertex) * 50000, NULL, GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, FontB0);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * 50000 * 6 / 4, NULL, GL_DYNAMIC_DRAW);
+
+		glGenTextures(1, &texture);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		
 		//glEnable(GL_DEPTH_TEST);
     }
 	
-	g_running = 1;
-	while(g_running)
+	g_state.running = TRUE;
+
+	g_state.width = WINDOW_WIDTH;
+	g_state.height = WINDOW_HEIGHT;
+	
+	render_group uiRenderGroup;
+	uiRenderGroup.vertices = (vertex*)malloc(10 * 1024 * 1024);
+	uiRenderGroup.indices  = (u32*)malloc(10 * 1024 * 1024);
+	
+	while(g_state.running)
 	{
 		MSG msg;
         while (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
@@ -347,15 +357,25 @@ WinMain(HINSTANCE Instance,
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 			if (msg.message == WM_QUIT)
-                g_running = 0;
+                g_state.running = 0;
         }
 		
-		if (!g_running)
+		if (!g_state.running)
             break;
 		
 		// NOTE(Ecy): Replace with suggested frame timing
-		if(Win32GetLastElapsed() > 1.0f / REFRESH_RATE)
+		//if(Win32GetLastElapsed() > 1.0f / REFRESH_RATE)
 		{
+			{
+				uiRenderGroup.vertexCount = 0;
+				uiRenderGroup.indexCount = 0;
+				
+				char *hello = "hello world";
+				DebugRenderText(&uiRenderGroup, &g_state, hello, 11, 10, 10, 10);
+				DebugRenderText(&uiRenderGroup, &g_state, hello, 11, 500, 100, 100);
+				DebugRenderText(&uiRenderGroup, &g_state, hello, 11, 800, 500, 100);
+			}
+			
 			if(av_read_frame(pFormatCtx, packet) >= 0)
 			{
 				if(packet->stream_index == videoStream)
@@ -363,18 +383,55 @@ WinMain(HINSTANCE Instance,
 					Decode(pCodecCtx, pFrame, packet);
 				}
 				
+				av_packet_unref(packet);
+				av_frame_unref(pFrame);
+				
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, pCodecCtx->width, pCodecCtx->height, 0, GL_RGB, GL_UNSIGNED_BYTE, pFrameRGB->data[0]);
 				glGenerateMipmap(GL_TEXTURE_2D);
 			}
 			
-			glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-			glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			//glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+			glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
 			glUseProgram(shaderProgram);
-			glBindVertexArray(VA0);
-			glBindTexture(GL_TEXTURE_2D, texture);
-			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+#if 0
+			{
+				glBindVertexArray(VA0);
+				
+				glEnableVertexAttribArray(0);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+				glEnableVertexAttribArray(1);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),  (void*)(3 * sizeof(float)));
+				
+				glBindTexture(GL_TEXTURE_2D, texture);
+				glBindBuffer(GL_ARRAY_BUFFER, VB0);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
+				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+			}
+#endif
+
+			// NOTE(Ecy): slow, experimental font engine debugging layer
+			{
+				glBindVertexArray(VA0);
+				
+				glEnableVertexAttribArray(0);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+				glEnableVertexAttribArray(1);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),  (void*)(3 * sizeof(float)));
+				
+				glBindTexture(GL_TEXTURE_2D, texture);
+				
+				glBindBuffer(GL_ARRAY_BUFFER, FontV0);
+				glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex) * uiRenderGroup.vertexCount, uiRenderGroup.vertices);
+				
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, FontB0);
+				glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(u32) * uiRenderGroup.indexCount, uiRenderGroup.indices);
+				
+				glDrawElements(GL_TRIANGLES, uiRenderGroup.indexCount, GL_UNSIGNED_INT, 0);
+			}
+
 			eglSwapBuffers(eglDisplay, eglSurface);
 			
 			{

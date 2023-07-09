@@ -10,20 +10,12 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-typedef int8_t   i8;
-typedef int16_t  i16;
-typedef int32_t  i32;
-typedef int64_t  i64;
-
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef float    r32;
-typedef double   r64;
-
-typedef int32_t  b32;
+typedef struct app_state
+{
+	b32 running;
+	
+	u32 width, height;
+} app_state;
 
 typedef struct debug_read_file_result
 {
@@ -36,6 +28,12 @@ LARGE_INTEGER    g_bootCounter;
 LARGE_INTEGER    g_lastCounter;
 u64              lastCycleCount;
 r64              cyclesPerFrame;
+
+typedef struct win32_context
+{
+	u32 width;
+	u32 height;
+} win32_context;
 
 typedef struct win32_timer
 {
@@ -214,14 +212,7 @@ Win32WriteEntireFile(char *filename, uint32_t memorySize, void* memory)
 inline b32
 InitFont(GLuint *texture)
 {
-	debug_read_file_result file = Win32ReadEntireFile("font.jpg");
-	
-	uint32_t x;
-	uint32_t y;
-	uint32_t channelsInFile;
-	uint32_t desiredChannels = 4;
-	
-	stbi_uc *image = stbi_load_from_memory((char*)file.contents, file.contentSize, &x, &y, &channelsInFile, desiredChannels);
+	// NOTE(Ecy): load ttf files from stb_truetype.h
 	
 	glGenTextures(1, texture);
 	glBindTexture(GL_TEXTURE_2D, *texture);
@@ -230,9 +221,10 @@ InitFont(GLuint *texture)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, x, y, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, x, y, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	
+	// NOTE(Ecy): load glyph data
 }
 
 #endif //MAIN_H

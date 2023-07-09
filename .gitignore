@@ -1,3 +1,4 @@
 debug/main.*
 debug/vc140.pdb
-debug/sample.mp4
+debug/*.mp4
+debug/.vs/
