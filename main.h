@@ -7,8 +7,8 @@
 #define WINDOW_HEIGHT 800
 #define REFRESH_RATE 120
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#define STB_TRUETYPE_IMPLEMENTATION 1
+#include "stb_truetype.h"
 
 typedef struct app_state
 {
@@ -209,13 +209,21 @@ Win32WriteEntireFile(char *filename, uint32_t memorySize, void* memory)
     return result;
 }
 
-inline b32
-InitFont(GLuint *texture)
+inline void
+InitFont()
 {
+	debug_read_file_result ttfFile = Win32ReadEntireFile("C:/Windows/Fonts/arial.ttf");
 	// NOTE(Ecy): load ttf files from stb_truetype.h
+	stbtt_fontinfo font;
+	stbtt_InitFont(&font, ttfFile.contents, stbtt_GetFontOffsetForIndex(ttfFile.contents, 0));
 	
-	glGenTextures(1, texture);
-	glBindTexture(GL_TEXTURE_2D, *texture);
+	 i32 width, height, xoff, yoff;
+	u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 120.0f), 
+										  'N', &width, &height, &xoff , &yoff);
+	
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -225,6 +233,9 @@ InitFont(GLuint *texture)
 	glGenerateMipmap(GL_TEXTURE_2D);
 	
 	// NOTE(Ecy): load glyph data
+	
+	
+	stbtt_FreeBitmap(bitmap, 0);
 }
 
 #endif //MAIN_H

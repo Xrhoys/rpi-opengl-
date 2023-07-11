@@ -340,6 +340,8 @@ WinMain(HINSTANCE Instance,
 		//glEnable(GL_DEPTH_TEST);
     }
 	
+	InitFont();
+	
 	g_state.running = TRUE;
 
 	g_state.width = WINDOW_WIDTH;
