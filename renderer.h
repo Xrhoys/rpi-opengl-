@@ -3,14 +3,20 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-#include "main.h"
+#include <EGL/egl.h>
+#include <EGL/eglplatform.h>
+#include <GLES/gl.h>
+#include <GLES2/gl2.h>
+#include <GLES3/gl3.h>
 
-typedef struct vertex
+#define GL_ES_VERSION_3_0 1
+
+struct vertex
 {
 	r32 x, y, z, u, v;
-} vertex;
+};
 
-typedef struct render_group
+ struct render_group
 {
 	u32      mode;
 	
@@ -19,7 +25,7 @@ typedef struct render_group
 	
 	u32      *indices;
 	u32      indexCount;
-} render_group;
+};
 
 inline vertex
 Vertex(r32 x, r32 y, r32 z, r32 u, r32 v)

@@ -3,7 +3,7 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include <stdlib.h>
+#include <stdint.h>
 
 typedef int8_t   i8;
 typedef int16_t  i16;

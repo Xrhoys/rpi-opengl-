@@ -10,18 +10,11 @@
 #define STB_TRUETYPE_IMPLEMENTATION 1
 #include "stb_truetype.h"
 
-typedef struct app_state
-{
-	b32 running;
-	
-	u32 width, height;
-} app_state;
-
-typedef struct debug_read_file_result
+struct debug_read_file_result
 {
 		void     *contents;
 		   uint32_t contentSize;
-} debug_read_file_result;
+};
 
 u64              g_perfCount;
 LARGE_INTEGER    g_bootCounter;
@@ -29,17 +22,17 @@ LARGE_INTEGER    g_lastCounter;
 u64              lastCycleCount;
 r64              cyclesPerFrame;
 
-typedef struct win32_context
+struct win32_context
 {
 	u32 width;
 	u32 height;
-} win32_context;
+};
 
-typedef struct win32_timer
+struct win32_timer
 {
 		r32 frameStart;
 		r32 elapsed;
-} win32_timer;
+};
 
 inline r32
 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
@@ -68,30 +61,6 @@ Win32GetLastElapsed(void)
 	r32 elapsed = Win32GetSecondsElapsed(g_lastCounter, currentCounter);
     
     return elapsed;
-}
-
-inline char* 
-getErrorStr(EGLint code)
-{
-	switch(code)
-	{
-		case EGL_SUCCESS: return "No error";
-		case EGL_NOT_INITIALIZED: return "EGL not initialized or failed to initialize";
-		case EGL_BAD_ACCESS: return "Resource inaccessible";
-		case EGL_BAD_ALLOC: return "Cannot allocate resources";
-		case EGL_BAD_ATTRIBUTE: return "Unrecognized attribute or attribute value";
-		case EGL_BAD_CONTEXT: return "Invalid EGL context";
-		case EGL_BAD_CONFIG: return "Invalid EGL frame buffer configuration";
-		case EGL_BAD_CURRENT_SURFACE: return "Current surface is no longer valid";
-		case EGL_BAD_DISPLAY: return "Invalid EGL display";
-		case EGL_BAD_SURFACE: return "Invalid surface";
-		case EGL_BAD_MATCH: return "Inconsistent arguments";
-		case EGL_BAD_PARAMETER: return "Invalid argument";
-		case EGL_BAD_NATIVE_PIXMAP: return "Invalid native pixmap";
-		case EGL_BAD_NATIVE_WINDOW: return "Invalid native window";
-		case EGL_CONTEXT_LOST: return "Context lost";
-		default: return "";
-	}
 }
 
 // Win32 message handler
@@ -209,13 +178,14 @@ Win32WriteEntireFile(char *filename, uint32_t memorySize, void* memory)
     return result;
 }
 
+#if 0
 inline void
 InitFont()
 {
 	debug_read_file_result ttfFile = Win32ReadEntireFile("C:/Windows/Fonts/arial.ttf");
 	// NOTE(Ecy): load ttf files from stb_truetype.h
 	stbtt_fontinfo font;
-	stbtt_InitFont(&font, ttfFile.contents, stbtt_GetFontOffsetForIndex(ttfFile.contents, 0));
+	stbtt_InitFont(&font, (u8*)ttfFile.contents, stbtt_GetFontOffsetForIndex((u8*)ttfFile.contents, 0));
 	
 	 i32 width, height, xoff, yoff;
 	u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 120.0f), 
@@ -237,5 +207,6 @@ InitFont()
 	
 	stbtt_FreeBitmap(bitmap, 0);
 }
+#endif
 
 #endif //MAIN_H
