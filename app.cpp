@@ -7,6 +7,9 @@ static video_decode decoder;
 static void
 InitApp()
 {
+	InitRenderer();
+	//InitFont();
+	
 	LoadVideoContext(&decoder, "sample.mp4");
 }
 

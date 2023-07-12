@@ -3,8 +3,9 @@
 #ifndef VIDEO_DECODE_H
 #define VIDEO_DECODE_H
 
-extern "C"
-{
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -15,7 +16,10 @@ extern "C"
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/pixfmt.h>
+#ifdef __cplusplus
 }
+#endif
+
 
 struct video_decode
 {
@@ -30,5 +34,6 @@ struct video_decode
 	AVFrame         *pFrame;
 	AVPacket        *packet;
 };
+
 
 #endif //VIDEO_DECODE_H

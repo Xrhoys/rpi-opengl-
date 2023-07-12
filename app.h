@@ -5,11 +5,4 @@
 
 #include "platform.h"
 
-struct app_state
-{
-	b32 running;
-	
-	u32 width, height;
-};
-
 #endif //APP_H

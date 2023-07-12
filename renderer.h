@@ -112,6 +112,35 @@ NOTE(Ecy): the following is upside down due to the screen orientation convention
 }
 
 inline void
+InitFont(app_state *state)
+{
+	debug_read_file_result ttfFile = state->DEBUGPlatformReadEntireFile(NULL, "C:/Windows/Fonts/arial.ttf");
+	// NOTE(Ecy): load ttf files from stb_truetype.h
+	stbtt_fontinfo font;
+	stbtt_InitFont(&font, (u8*)ttfFile.contents, stbtt_GetFontOffsetForIndex((u8*)ttfFile.contents, 0));
+	
+	i32 width, height, xoff, yoff;
+	u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 120.0f), 
+										  'N', &width, &height, &xoff , &yoff);
+	
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, x, y, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	
+	// NOTE(Ecy): load glyph data
+	
+	
+	stbtt_FreeBitmap(bitmap, 0);
+}
+
+inline void
 DebugRenderText(render_group *group, app_state *appState, char *buffer,
 				u32 size, u32 x, u32 y, u32 scale)
 {
