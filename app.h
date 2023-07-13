@@ -4,5 +4,6 @@
 #define APP_H
 
 #include "platform.h"
+#include "video_decode.h"
 
 #endif //APP_H

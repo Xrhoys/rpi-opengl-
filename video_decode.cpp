@@ -1,7 +1,7 @@
 #include "video_decode.h"
 
 // NOTE(Ecy): return type is temporary
-static void
+internal void
 LoadVideoContext(video_decode *decoder, char *filename)
 {
 	if(avformat_open_input(&decoder->formatContext, filename, NULL, 0) != 0)
@@ -88,7 +88,7 @@ LoadVideoContext(video_decode *decoder, char *filename)
 	}
 }
 
-static void 
+ internal void 
 Decode(video_decode *decoder)
 {
     int ret;
@@ -124,7 +124,7 @@ Decode(video_decode *decoder)
     }
 }
 
-static void
+ internal void
 UpdateDecode(video_decode *decoder)
 {
 	if(av_read_frame(decoder->formatContext, decoder->packet) >= 0)
@@ -139,9 +139,15 @@ UpdateDecode(video_decode *decoder)
 	}
 }
 
-static void
+ internal void
 FreeDecode(video_decode *decode)
 {
+	avformat_close_input(&decode->formatContext);
+	avformat_free_context(decode->formatContext);
+	av_frame_free(&decode->pFrame);
+	av_packet_free(&decode->packet);
+	avcodec_free_context(&decode->codecContext);
+	
 	av_frame_unref(decode->pFrame);
 	av_frame_unref(decode->pFrameRGB);
 	av_packet_free(&decode->packet);

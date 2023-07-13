@@ -11,6 +11,9 @@
 
 #define GL_ES_VERSION_3_0 1
 
+#define STB_TRUETYPE_IMPLEMENTATION 1
+#include "stb_truetype.h"
+
 struct vertex
 {
 	r32 x, y, z, u, v;
@@ -131,8 +134,8 @@ InitFont(app_state *state)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, x, y, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	// glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap);
+	// glGenerateMipmap(GL_TEXTURE_2D);
 	
 	// NOTE(Ecy): load glyph data
 	

@@ -2,18 +2,18 @@
 #include "renderer.cpp"
 #include "video_decode.cpp"
 
-static video_decode decoder;
+ global video_decode decoder;
 
-static void
-InitApp()
+internal void
+InitApp(app_state *appContext)
 {
-	InitRenderer();
-	//InitFont();
+	InitRenderer(appContext);
+	InitFont(appContext);
 	
 	LoadVideoContext(&decoder, "sample.mp4");
 }
 
-static void
+internal void
 UpdateAndRenderApp(app_state *appContext)
 {
 	{

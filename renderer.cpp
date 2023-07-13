@@ -1,6 +1,6 @@
 #include "renderer.h"
 
-	static render_group uiRenderGroup;
+	 global render_group uiRenderGroup;
 
 GLuint shaderProgram;
 
@@ -44,8 +44,8 @@ getErrorStr(EGLint code)
 	}
 }
 
-static void
-InitRenderer()
+ internal void
+InitRenderer(app_state *appContext)
 {
     {
         const char *vertexShaderSource = 
@@ -148,7 +148,7 @@ InitRenderer()
 	uiRenderGroup.indices  = (u32*)malloc(10 * 1024 * 1024);
 }
 
-static void
+internal void
 Render()
 {
 	// NOTE(Ecy): Replace with suggested frame timing
