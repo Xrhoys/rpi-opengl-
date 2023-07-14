@@ -1,6 +1,6 @@
 #include "renderer.h"
 
-	 global render_group uiRenderGroup;
+global render_group uiRenderGroup;
 
 GLuint shaderProgram;
 
@@ -129,6 +129,7 @@ InitRenderer(app_state *appContext)
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 		
+		// TODO(Ecy): remove hard coded values later
 		glBindBuffer(GL_ARRAY_BUFFER, FontV0);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertex) * 50000, NULL, GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, FontB0);
@@ -184,7 +185,7 @@ Render()
 			glEnableVertexAttribArray(1);
 			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),  (void*)(3 * sizeof(float)));
 			
-			glBindTexture(GL_TEXTURE_2D, texture);
+			glBindTexture(GL_TEXTURE_2D, 2);
 			
 			glBindBuffer(GL_ARRAY_BUFFER, FontV0);
 			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex) * uiRenderGroup.vertexCount, uiRenderGroup.vertices);

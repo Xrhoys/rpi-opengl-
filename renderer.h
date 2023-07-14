@@ -11,8 +11,9 @@
 
 #define GL_ES_VERSION_3_0 1
 
-// #define STB_TRUETYPE_IMPLEMENTATION 1
-// #include "stb_truetype.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION 1
+#include "stb_truetype.h"
 
 struct vertex
 {
@@ -90,13 +91,13 @@ PushAxisAlignedGlyph(render_group *group, app_state *state,
 	u32 *i = &group->indices[group->indexCount];
 	
 	/*
-A--B  A(x,y)                       (u, v)                     
-|\ |  B(x + width, y)              (u + glyphWidth, v)
-| \|  C(x + width, y + height)     (u + glyphWidth, v + glyphHeight)
-D--C  D(x, y + height)             (u, v + glyphHeight)
+		A--B  A(x,y)                       (u, v)                     
+		|\ |  B(x + width, y)              (u + glyphWidth, v)
+		| \|  C(x + width, y + height)     (u + glyphWidth, v + glyphHeight)
+		D--C  D(x, y + height)             (u, v + glyphHeight)
 
-NOTE(Ecy): the following is upside down due to the screen orientation convention used
-*/
+		NOTE(Ecy): the following is upside down due to the screen orientation convention used
+	*/
 	
 	vt[0] = Vertex(posX,     posHeight, 0.0f,  u, v + glyphHeight);
 	vt[1] = Vertex(posWidth, posHeight, 0.0f,  u + glyphWidth, v + glyphHeight);
@@ -114,17 +115,16 @@ NOTE(Ecy): the following is upside down due to the screen orientation convention
 	group->indexCount += 6;
 }
 
-#if 0
 inline void
-InitFont(app_state *state)
+InitFont(app_state *state, char* filename)
 {
-	debug_read_file_result ttfFile = state->DEBUGPlatformReadEntireFile(NULL, "C:/Windows/Fonts/arial.ttf");
+	debug_read_file_result ttfFile = state->DEBUGPlatformReadEntireFile(NULL, filename);
 	// NOTE(Ecy): load ttf files from stb_truetype.h
 	stbtt_fontinfo font;
 	stbtt_InitFont(&font, (u8*)ttfFile.contents, stbtt_GetFontOffsetForIndex((u8*)ttfFile.contents, 0));
 	
 	i32 width, height, xoff, yoff;
-	u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 120.0f), 
+	u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 10.0f), 
 										  'N', &width, &height, &xoff , &yoff);
 	
 	GLuint texture;
@@ -135,15 +135,13 @@ InitFont(app_state *state)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-	// glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap);
-	// glGenerateMipmap(GL_TEXTURE_2D);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap);
+	glGenerateMipmap(GL_TEXTURE_2D);
 	
-	// NOTE(Ecy): load glyph data
-	
+	// NOTE(Ecy): load glyph data	
 	
 	stbtt_FreeBitmap(bitmap, 0);
 }
-#endif
 
 inline void
 DebugRenderText(render_group *group, app_state *appState, char *buffer,

@@ -2,15 +2,18 @@
 #include "renderer.cpp"
 #include "video_decode.cpp"
 
+#define FONT_FILE "data/arial.ttf"
+#define SAMPLE_DATA "data/sample.mp4"
+
 global video_decode decoder;
 
 internal void
 InitApp(app_state *appContext)
 {
 	InitRenderer(appContext);
-	// InitFont(appContext);
+	InitFont(appContext, FONT_FILE);
 	
-	LoadVideoContext(&decoder, "data/sample.mp4");
+	LoadVideoContext(&decoder, SAMPLE_DATA);
 }
 
 internal void

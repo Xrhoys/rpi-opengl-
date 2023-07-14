@@ -32,7 +32,7 @@ typedef int32_t  b32;
 	typedef struct debug_read_file_result
 	{
 		void     *contents;
-		uint32_t contentSize;
+		u32      contentSize;
 	} debug_read_file_result;
 	
 #define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(thread_context *thread, void *memory)
