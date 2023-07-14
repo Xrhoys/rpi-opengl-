@@ -2,15 +2,15 @@
 #include "renderer.cpp"
 #include "video_decode.cpp"
 
- global video_decode decoder;
+global video_decode decoder;
 
 internal void
 InitApp(app_state *appContext)
 {
 	InitRenderer(appContext);
-	InitFont(appContext);
+	// InitFont(appContext);
 	
-	LoadVideoContext(&decoder, "sample.mp4");
+	LoadVideoContext(&decoder, "data/sample.mp4");
 }
 
 internal void
@@ -25,11 +25,13 @@ UpdateAndRenderApp(app_state *appContext)
 		DebugRenderText(&uiRenderGroup, appContext, hello, 11, 500, 100, 100);
 		DebugRenderText(&uiRenderGroup, appContext, hello, 11, 800, 500, 100);
 	}
-	
-	UpdateDecode(&decoder);
-	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB, GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
-	glGenerateMipmap(GL_TEXTURE_2D);
+
+	if(decoder.isLoaded)
+	{
+		UpdateDecode(&decoder);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB, GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
 	
 	Render();
 }

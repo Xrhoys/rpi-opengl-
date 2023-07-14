@@ -60,7 +60,7 @@ LoadVideoContext(video_decode *decoder, char *filename)
 		return;
 	}
 	
-	    decoder->pFrame    = av_frame_alloc();
+	decoder->pFrame    = av_frame_alloc();
 	decoder->pFrameRGB = av_frame_alloc();
 	decoder->packet    = av_packet_alloc();
 	
@@ -86,6 +86,8 @@ LoadVideoContext(video_decode *decoder, char *filename)
 		// no scaler context found
 		return;
 	}
+
+	decoder->isLoaded = true;
 }
 
  internal void 

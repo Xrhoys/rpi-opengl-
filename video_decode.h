@@ -23,6 +23,7 @@ extern "C" {
 
 struct video_decode
 {
+	b32               isLoaded;
 	struct SwsContext *swsCtx;
 	
 	i32             streamIndex;

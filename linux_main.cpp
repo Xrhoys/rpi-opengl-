@@ -5,7 +5,6 @@
 #include <X11/Xutil.h>
 
 #include <stdio.h>
-#include <tchar.h>
 
 #include "linux_main.h"
 
@@ -19,9 +18,20 @@ global Display                *xdisplay;
 global XSetWindowAttributes   swa;
 global u32                    root_w, root_h, root_border_width, root_depth;
 
+inline u32 
+GetTicks()
+{
+  u64 ticks = 0;
+  u32 a, d;
+  asm volatile("rdtsc" : "=a" (a), "=d" (d));
+
+  return a;
+}
+
 internal
 DEBUG_CLOCK_GET_TIME(LinuxGetLastElapsed)
 {
+	return 0.0f;
 }
 
 internal
@@ -32,16 +42,20 @@ DEBUG_PLATFORM_FREE_FILE_MEMORY(LinuxFreeFile)
 internal
 DEBUG_PLATFORM_WRITE_ENTIRE_FILE(LinuxWriteEntireFile)
 {
+	return true;
 }
 
 internal
 DEBUG_PLATFORM_READ_ENTIRE_FILE(LinuxReadEntireFile)
 {
+	debug_read_file_result file;
+
+	return file;
 }
 
 
 internal void 
-ProcessEvent(XEvent *xev) {
+ProcessEvent(app_state *appContext, XEvent *xev) {
 	// NOTE(Ecy): do not call printf here, it will cause segfault or being ignored
 	switch (xev->type) {
 		case KeyPress:
@@ -50,7 +64,7 @@ ProcessEvent(XEvent *xev) {
 			
 			// NOTE(Ecy): escape key
 			if(keyEvent->keycode == 0x09) {
-				g_running = false;
+				appContext->running = false;
 			}
 		} break;
 		
@@ -65,54 +79,54 @@ ProcessEvent(XEvent *xev) {
 }
 
 int main(int argc, char *argv[]) {
-		xdisplay = XOpenDisplay(NULL);
-		if (xdisplay == NULL) {
-			printf("Error opening X display\n");
-			return 0;
-		}
-		
-		// All events the window accepts
-		swa.event_mask = StructureNotifyMask | ExposureMask | PointerMotionMask |
-			KeyPressMask | KeyReleaseMask | ButtonPressMask |
-			ButtonReleaseMask;
-		
-		// Get root window
-		root = DefaultRootWindow(xdisplay);
-		i32 root_x, root_y;
-		Window root_again;
-		
-		XGetGeometry(xdisplay, root, &root_again, &root_x, &root_y, &root_w, &root_h, &root_border_width, &root_depth);
-		
-		// Create window
-		window = XCreateWindow(xdisplay, root,
-							   0, 0, root_w, root_h, 0,
-							   CopyFromParent, InputOutput,
-							   CopyFromParent, CWEventMask,
-							   &swa);
-		
-		XSetWindowAttributes xattr;
-		
-		xattr.override_redirect = False;
-		XChangeWindowAttributes(xdisplay, window, CWOverrideRedirect, &xattr);
-		
-		Atom atomWmDeleteWindow = XInternAtom(xdisplay, "WM_DELETE_WINDOW", false);
-		XSetWMProtocols(xdisplay, root, &atomWmDeleteWindow, 1);
-		
-		i32 one = 1;
-		XChangeProperty(
-						xdisplay, window,
-						XInternAtom (xdisplay, "_HILDON_NON_COMPOSITED_WINDOW", False),
-						XA_INTEGER,  32,  PropModeReplace,
-						(unsigned char*) &one, 1);
-		
-		XWMHints hints;
-		hints.input = True;
-		hints.flags = InputHint;
-		XSetWMHints(xdisplay, window, &hints);
-		
-		XMapWindow(xdisplay, window); // make window visible
-		XSync(xdisplay, window);
-		XStoreName(xdisplay, window, "RPI Emulation");
+	xdisplay = XOpenDisplay(NULL);
+	if (xdisplay == NULL) {
+		printf("Error opening X display\n");
+		return 0;
+	}
+	
+	// All events the window accepts
+	swa.event_mask = StructureNotifyMask | ExposureMask | PointerMotionMask |
+		KeyPressMask | KeyReleaseMask | ButtonPressMask |
+		ButtonReleaseMask;
+	
+	// Get root window
+	root = DefaultRootWindow(xdisplay);
+	i32 root_x, root_y;
+	Window root_again;
+	
+	XGetGeometry(xdisplay, root, &root_again, &root_x, &root_y, &root_w, &root_h, &root_border_width, &root_depth);
+	
+	// Create window
+	window = XCreateWindow(xdisplay, root,
+							0, 0, root_w, root_h, 0,
+							CopyFromParent, InputOutput,
+							CopyFromParent, CWEventMask,
+							&swa);
+	
+	XSetWindowAttributes xattr;
+	
+	xattr.override_redirect = False;
+	XChangeWindowAttributes(xdisplay, window, CWOverrideRedirect, &xattr);
+	
+	Atom atomWmDeleteWindow = XInternAtom(xdisplay, "WM_DELETE_WINDOW", false);
+	XSetWMProtocols(xdisplay, root, &atomWmDeleteWindow, 1);
+	
+	i32 one = 1;
+	XChangeProperty(
+					xdisplay, window,
+					XInternAtom (xdisplay, "_HILDON_NON_COMPOSITED_WINDOW", False),
+					XA_INTEGER,  32,  PropModeReplace,
+					(unsigned char*) &one, 1);
+	
+	XWMHints hints;
+	hints.input = True;
+	hints.flags = InputHint;
+	XSetWMHints(xdisplay, window, &hints);
+	
+	XMapWindow(xdisplay, window); // make window visible
+	XSync(xdisplay, window);
+	XStoreName(xdisplay, window, "RPI Emulation");
 	
 	// EGL
 	EGLDisplay eglDisplay = {};
@@ -166,7 +180,7 @@ int main(int argc, char *argv[]) {
 		EGLConfig *eglConfigs;
 		EGLint eglNumConfigs;
 		eglGetConfigs(eglDisplay, NULL, 0, &eglNumConfigs);
-		EGLConfig *eglConfigs = (EGLConfig*)malloc(sizeof(EGLConfig) * eglNumConfigs);
+		eglConfigs = (EGLConfig*)malloc(sizeof(EGLConfig) * eglNumConfigs);
 		
 		eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	}
@@ -192,15 +206,15 @@ int main(int argc, char *argv[]) {
 	
 	while(g_state.running)
 	{
-			while(XPending(xdisplay))
-			{
-				XEvent xev;
-				
-				XNextEvent(xdisplay, &xev);
-				ProcessEvent(&xev);
-			}
+		while(XPending(xdisplay))
+		{
+			XEvent xev;
 			
-		if (g_state.running) 
+			XNextEvent(xdisplay, &xev);
+			ProcessEvent(&g_state, &xev);
+		}
+			
+		if (!g_state.running) 
 			break;
 		
 		UpdateAndRenderApp(&g_state);
@@ -209,8 +223,9 @@ int main(int argc, char *argv[]) {
 		
 		// Timer update
 		{
-			appTimer.lastCounter = appTimer.currentCounter;
-			appTimer.currentCounter = GetTicks();
+			// NOTE(Ecy): placeholder
+			g_state.clock = GetTicks();
+			g_state.frameTime = GetTicks();
 		}
 		
 	}

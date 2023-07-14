@@ -5,14 +5,14 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglplatform.h>
-#include <GLES/gl.h>
+#include <GL/gl.h>
 #include <GLES2/gl2.h>
 #include <GLES3/gl3.h>
 
 #define GL_ES_VERSION_3_0 1
 
-#define STB_TRUETYPE_IMPLEMENTATION 1
-#include "stb_truetype.h"
+// #define STB_TRUETYPE_IMPLEMENTATION 1
+// #include "stb_truetype.h"
 
 struct vertex
 {
@@ -114,6 +114,7 @@ NOTE(Ecy): the following is upside down due to the screen orientation convention
 	group->indexCount += 6;
 }
 
+#if 0
 inline void
 InitFont(app_state *state)
 {
@@ -142,6 +143,7 @@ InitFont(app_state *state)
 	
 	stbtt_FreeBitmap(bitmap, 0);
 }
+#endif
 
 inline void
 DebugRenderText(render_group *group, app_state *appState, char *buffer,

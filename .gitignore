@@ -1,5 +1,11 @@
-debug/main.*
+# Exclude linux executable
+debug/*main*
+
+# Exclude cl debug files
+debug/win32*
 debug/vc140.pdb
-*.mp4
 debug/.vs/
+
+# Exclude sample data folder
 data
+*.mp4
