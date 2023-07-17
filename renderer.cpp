@@ -1,5 +1,7 @@
+
 #include "renderer.h"
 
+global render_group debugRenderGroup;
 global render_group uiRenderGroup;
 
 GLuint shaderProgram;
@@ -145,6 +147,9 @@ InitRenderer(app_state *appContext)
 		//glEnable(GL_DEPTH_TEST);
     }
 	
+	debugRenderGroup.vertices = (vertex*)malloc(1024 * 1024);
+	debugRenderGroup.indices  = (u32*)malloc(1024 * 1024);
+	
 	uiRenderGroup.vertices = (vertex*)malloc(10 * 1024 * 1024);
 	uiRenderGroup.indices  = (u32*)malloc(10 * 1024 * 1024);
 }
@@ -188,12 +193,17 @@ Render()
 			glBindTexture(GL_TEXTURE_2D, 2);
 			
 			glBindBuffer(GL_ARRAY_BUFFER, FontV0);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex) * uiRenderGroup.vertexCount, uiRenderGroup.vertices);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex) * debugRenderGroup.vertexCount, debugRenderGroup.vertices);
 			
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, FontB0);
-			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(u32) * uiRenderGroup.indexCount, uiRenderGroup.indices);
+			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(u32) * debugRenderGroup.indexCount, debugRenderGroup.indices);
 			
-			glDrawElements(GL_TRIANGLES, uiRenderGroup.indexCount, GL_UNSIGNED_INT, 0);
+			glDrawElements(GL_TRIANGLES, debugRenderGroup.indexCount, GL_UNSIGNED_INT, 0);
+		}
+		
+		// NOTE(Ecy): render tree-node UI structure
+		{
+			
 		}
 	}
 }

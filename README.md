@@ -19,7 +19,7 @@ The asset processor and toolings can use library/frameworks.
 
 ## TODOs
 
-- Start building a light asset processor pipeline
+- Start building a light asset processor pipeline (in progress...)
 - Using stb_truetype library to load font and render pre-rasterized bitmaps.
   This is only for debugging purpose right now, in the future the font pipeline should be able to support vectorized font data.
 - Handle keyboard/mouse/os events (portable way, in platform.h)
