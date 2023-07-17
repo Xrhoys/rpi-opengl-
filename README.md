@@ -28,4 +28,4 @@ The asset processor and toolings can use library/frameworks.
 
 ## Exploring
 
-- Explore UI structures in immediate mode
+- Explore UI structures in immediate mode (in progress...)
