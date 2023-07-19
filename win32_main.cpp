@@ -44,7 +44,7 @@ DEBUG_CLOCK_GET_TIME(Win32GetLastElapsed)
 }
 
 internal
- DEBUG_PLATFORM_FREE_FILE_MEMORY(Win32FreeFile)
+DEBUG_PLATFORM_FREE_FILE_MEMORY(Win32FreeFile)
 {
 	VirtualFree(memory, 0, MEM_RELEASE);
 }

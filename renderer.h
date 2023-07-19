@@ -121,10 +121,11 @@ inline void
 InitFont(app_state *state, char* filename)
 {
 	debug_read_file_result fontFile = state->DEBUGPlatformReadEntireFile(NULL, filename);
-
+	
 	asset_font *fontData = (asset_font*)fontFile.contents;
-
-	u8 *textureData = (u8*)fontFile.contents + sizeof(asset_font);
+	
+	u8 *textureData = (u8*)fontFile.contents;
+	textureData += sizeof(asset_font);
 
 	GLuint texture;
 	glGenTextures(1, &texture);
@@ -135,7 +136,7 @@ InitFont(app_state *state, char* filename)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fontData->width, fontData->height, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData);
-	glGenerateMipmap(GL_TEXTURE_2D);	
+	glGenerateMipmap(GL_TEXTURE_2D);
 }
 
 inline void

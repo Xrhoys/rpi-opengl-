@@ -3,6 +3,9 @@
 #ifndef ASSET_BUILD_H
 #define ASSET_BUILD_H
 
+#define MAX_ASCII_SUPPORTED_GLYPH 0x5E
+#define BASE_OFFSET '!'
+
 struct asset_font_glyph
 {
 	char glyph;
@@ -22,7 +25,7 @@ struct asset_font_glyph
 
 struct asset_font
 {
-	asset_font_glyph glyphs[0x5E];
+	asset_font_glyph glyphs[MAX_ASCII_SUPPORTED_GLYPH];
 
 	u32 height;	
 	u32 width;
