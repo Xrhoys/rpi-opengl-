@@ -4,6 +4,11 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+// LINUX POSIX API
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
 #include <stdio.h>
 
 #include "linux_main.h"
@@ -37,11 +42,32 @@ DEBUG_CLOCK_GET_TIME(LinuxGetLastElapsed)
 internal
 DEBUG_PLATFORM_FREE_FILE_MEMORY(LinuxFreeFile)
 {
+	free(memory);
 }
 
 internal
 DEBUG_PLATFORM_WRITE_ENTIRE_FILE(LinuxWriteEntireFile)
 {
+	u32 flags = O_WRONLY | O_CREAT | O_TRUNC;
+	u32 permissionFlags = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	i32 fd = open(filename, flags, permissionFlags);
+
+	if(fd == -1) 
+	{
+		// TODO(Ecy): handle file open error
+		return false;
+	}
+
+	ssize_t bytesWritten = write(fd, memory, memorySize);
+	if(bytesWritten == -1)
+	{
+		close(fd);
+		// TODO(Ecy): handle file write error
+		return false;
+	}
+	
+	close(fd);
+
 	return true;
 }
 
@@ -50,9 +76,39 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(LinuxReadEntireFile)
 {
 	debug_read_file_result file;
 
+	i32 fd = open(filename, O_RDONLY);
+
+	if(fd == -1) 
+	{
+		// TODO(Ecy): handle file open error
+	}
+
+	struct stat st;
+	stat(filename, &st);
+
+	// TODO(Ecy): investigate on the off_t size, this could vary per machine
+	off_t size = st.st_size;
+
+	u8 *buffer;
+	ssize_t bytesRead;
+	if(size > 0) 
+	{
+		buffer = (u8*)malloc(size);
+		bytesRead = read(fd, buffer, size);
+
+		if(bytesRead != size)
+		{
+			// TODO(Ecy): handle file read error
+		}
+	}
+
+	file.contents    = buffer;
+	file.contentSize = bytesRead;
+
+	close(fd);
+
 	return file;
 }
-
 
 internal void 
 ProcessEvent(app_state *appContext, XEvent *xev) {

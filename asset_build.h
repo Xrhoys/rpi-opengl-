@@ -3,23 +3,29 @@
 #ifndef ASSET_BUILD_H
 #define ASSET_BUILD_H
 
-enum asset_tag
+struct asset_font_glyph
 {
-	ASSET_TAG_FONT,
+	char glyph;
+	u32 offset;
+	u32 width;
+	u32 height;	
+
+	/*
+		A--B  A(left, top)                                     
+		|\ |  B(right, top)              
+		| \|  C(right, bottom)     
+		D--C  D(left, bottom)             
+	*/
+	r32 xoffset;
+	r32 yoffset;
 };
 
-struct asset_data
+struct asset_font
 {
-	asset_tag tag;
-	u32       size;
-	
-	
-	
-};
+	asset_font_glyph glyphs[0x5E];
 
-struct asset_build
-{
-	
+	u32 height;	
+	u32 width;
 };
 
 #endif //ASSET_BUILD_H

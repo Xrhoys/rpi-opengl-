@@ -15,6 +15,8 @@
 #define STB_TRUETYPE_IMPLEMENTATION 1
 #include "stb_truetype.h"
 
+#include "asset_build.h"
+
 struct vertex
 {
 	r32 x, y, z, u, v;
@@ -118,15 +120,12 @@ PushAxisAlignedGlyph(render_group *group, app_state *state,
 inline void
 InitFont(app_state *state, char* filename)
 {
-	debug_read_file_result ttfFile = state->DEBUGPlatformReadEntireFile(NULL, filename);
-	// NOTE(Ecy): load ttf files from stb_truetype.h
-	stbtt_fontinfo font;
-	stbtt_InitFont(&font, (u8*)ttfFile.contents, stbtt_GetFontOffsetForIndex((u8*)ttfFile.contents, 0));
-	
-	i32 width, height, xoff, yoff;
-	u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 10.0f), 
-										  'N', &width, &height, &xoff , &yoff);
-	
+	debug_read_file_result fontFile = state->DEBUGPlatformReadEntireFile(NULL, filename);
+
+	asset_font *fontData = (asset_font*)fontFile.contents;
+
+	u8 *textureData = (u8*)fontFile.contents + sizeof(asset_font);
+
 	GLuint texture;
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
@@ -135,12 +134,8 @@ InitFont(app_state *state, char* filename)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	
-	// NOTE(Ecy): load glyph data	
-	
-	stbtt_FreeBitmap(bitmap, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fontData->width, fontData->height, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData);
+	glGenerateMipmap(GL_TEXTURE_2D);	
 }
 
 inline void
