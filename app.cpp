@@ -9,7 +9,7 @@ global video_decode decoder;
 global app_ui mainUi;
 global font_engine g_fontEngine;
 
-inline void
+internal void
 InitFont(app_state *state, font_engine *engine, char* filename)
 {
 	debug_read_file_result fontFile = state->DEBUGPlatformReadEntireFile(NULL, filename);
@@ -27,11 +27,39 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, engine->asset.width, engine->asset.height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, textureData);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, engine->asset.width, engine->asset.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 
+				 textureData);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	engine->textureId = texture;
 }
+
+internal void
+DebugRenderText(render_group *group, app_state *appState, char *buffer,
+				u32 size, u32 x, u32 y, u32 scale)
+{
+	for(u32 index = 0;
+		index < size;
+		++index)
+	{
+		char currentCharacter = buffer[index];
+		asset_font_glyph *glyph = &g_fontEngine.asset.glyphs[currentCharacter - FONT_BASE_OFFSET];
+		asset_font_glyph *nextGlyph = &g_fontEngine.asset.glyphs[currentCharacter - FONT_BASE_OFFSET + 1];
+		
+		// TODO(Ecy): load uv font coords from assets
+		r32 u = glyph->xoffset;
+		r32 v = glyph->yoffset;
+		r32 glyphWidth = nextGlyph->xoffset;
+		r32 glyphHeight = nextGlyph->yoffset;
+		
+		// TODO(Ecy): this ratio is queried from assets
+		r32 ratio = 1.5;
+		
+		// NOTE(Ecy): what would be the scale of the font?
+		PushAxisAlignedGlyph(group, appState, x + index * 100, y, scale, scale * ratio, u, v, glyphWidth, glyphHeight);
+	}
+}
+
 
 internal void
 InitApp(app_state *appContext)
@@ -60,7 +88,7 @@ InitApp(app_state *appContext)
 internal void
 UpdateAndRenderApp(app_state *appContext)
 {
-#if 0
+#if 1
 	{
 		// NOTE(Ecy): that is not good ... should not be reseted at this stage
 		debugRenderGroup.vertexCount = 0;
@@ -72,7 +100,8 @@ UpdateAndRenderApp(app_state *appContext)
 		DebugRenderText(&debugRenderGroup, appContext, hello, 11, 800, 500, 100);
 	}
 #endif
-	
+
+#if 0	
 	{
 		uiRenderGroup.vertexCount = 0;
 		uiRenderGroup.indexCount = 0;
@@ -87,13 +116,17 @@ UpdateAndRenderApp(app_state *appContext)
 			
 		}
 	}
-	
+#endif
+
+#if 0
 	if(decoder.isLoaded)
 	{
 		UpdateDecode(&decoder);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB, GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB,
+					 GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
-	
+#endif
+
 	Render();
 }

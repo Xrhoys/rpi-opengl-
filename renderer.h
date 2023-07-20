@@ -117,28 +117,4 @@ PushAxisAlignedGlyph(render_group *group, app_state *state,
 	group->indexCount += 6;
 }
 
-inline void
-DebugRenderText(render_group *group, app_state *appState, char *buffer,
-				u32 size, u32 x, u32 y, u32 scale)
-{
-	for(u32 index = 0;
-		index < size;
-		++index)
-	{
-		char currentCharacter = buffer[index];
-		
-		// TODO(Ecy): load uv font coords from assets
-		r32 u = 0.0f;
-		r32 v = 0.0f;
-		r32 glyphWidth = 1.0f;
-		r32 glyphHeight = 1.0f;
-		
-		// TODO(Ecy): this ratio is queried from assets
-		r32 ratio = 1.5;
-		
-		// NOTE(Ecy): what would be the scale of the font?
-		PushAxisAlignedGlyph(group, appState, x + index * 100, y, scale, scale * ratio, u, v, glyphWidth, glyphHeight);
-	}
-}
-
 #endif //RENDERER_H

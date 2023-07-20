@@ -4,7 +4,7 @@
 #define ASSET_BUILD_H
 
 #define MAX_ASCII_SUPPORTED_GLYPH 0x5E
-#define BASE_OFFSET '!'
+#define FONT_BASE_OFFSET '!'
 
 struct asset_font_glyph
 {

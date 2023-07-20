@@ -205,7 +205,7 @@ int main()
 		// The strategy is to line all the glyphs horizontally and supply (u,v) cooridnates in a seperate structure
 		// This could potentially have float coordinate precision issues
 		asset_font fontData = {};
-		for(char index = BASE_OFFSET;
+		for(char index = FONT_BASE_OFFSET;
 			index < '~';
 			++index)
 		{
@@ -215,7 +215,7 @@ int main()
 
 			memcpy(cursor, bitmap, width * height);
 			
-			asset_font_glyph *currentGlyph = &fontData.glyphs[index - BASE_OFFSET];
+			asset_font_glyph *currentGlyph = &fontData.glyphs[index - FONT_BASE_OFFSET];
 			currentGlyph->glyph   = index;
 			currentGlyph->offset  = cursor - writeBuffer;
 			currentGlyph->width   = width;

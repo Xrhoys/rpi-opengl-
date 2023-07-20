@@ -15,7 +15,7 @@ global u64       g_lastCounter;
 global u64       lastCycleCount;
 global r64       cyclesPerFrame;
 
- internal r32
+internal r32
 Win32GetSecondsElapsed(u64 start, u64 end)
 {
 	r64 endTime   = (r64)end;
@@ -169,9 +169,11 @@ WinMain(HINSTANCE Instance,
         LPSTR CommandLine,
         int ShowCode)
 {
-    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("RPI Emulation"), NULL };
+    WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), 
+		NULL, NULL, NULL, NULL, _T("RPI Emulation"), NULL };
     RegisterClassEx(&wc);
-    HWND hwnd = CreateWindow(wc.lpszClassName, _T("RPI Emulation"), WS_OVERLAPPEDWINDOW, 100, 100, WINDOW_WIDTH, WINDOW_HEIGHT, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = CreateWindow(wc.lpszClassName, _T("RPI Emulation"), WS_OVERLAPPEDWINDOW, 
+							 100, 100, WINDOW_WIDTH, WINDOW_HEIGHT, NULL, NULL, wc.hInstance, NULL);
     
     ShowWindow(hwnd, SW_SHOWDEFAULT);
     UpdateWindow(hwnd);
