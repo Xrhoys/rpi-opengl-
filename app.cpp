@@ -7,12 +7,37 @@
 
 global video_decode decoder;
 global app_ui mainUi;
+global font_engine g_fontEngine;
+
+inline void
+InitFont(app_state *state, font_engine *engine, char* filename)
+{
+	debug_read_file_result fontFile = state->DEBUGPlatformReadEntireFile(NULL, filename);
+	
+	memcpy(&engine->asset, fontFile.contents, sizeof(asset_font));
+	
+	u8 *textureData = (u8*)fontFile.contents;
+	textureData += sizeof(asset_font);
+
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, engine->asset.width, engine->asset.height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, textureData);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	engine->textureId = texture;
+}
 
 internal void
 InitApp(app_state *appContext)
 {
 	InitRenderer(appContext);
-	InitFont(appContext, "data/asset_data");
+	InitFont(appContext, &g_fontEngine, "data/asset_data");
 	
 	LoadVideoContext(&decoder, SAMPLE_DATA);
 	
@@ -59,7 +84,7 @@ UpdateAndRenderApp(app_state *appContext)
 		{
 			ui_node *node = &mainUi.nodes[index];
 			
-			int b = 0;
+			
 		}
 	}
 	

@@ -118,28 +118,6 @@ PushAxisAlignedGlyph(render_group *group, app_state *state,
 }
 
 inline void
-InitFont(app_state *state, char* filename)
-{
-	debug_read_file_result fontFile = state->DEBUGPlatformReadEntireFile(NULL, filename);
-	
-	asset_font *fontData = (asset_font*)fontFile.contents;
-	
-	u8 *textureData = (u8*)fontFile.contents;
-	textureData += sizeof(asset_font);
-
-	GLuint texture;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, fontData->width, fontData->height, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData);
-	glGenerateMipmap(GL_TEXTURE_2D);
-}
-
-inline void
 DebugRenderText(render_group *group, app_state *appState, char *buffer,
 				u32 size, u32 x, u32 y, u32 scale)
 {

@@ -5,6 +5,7 @@
 
 #include "platform.h"
 #include "video_decode.h"
+#include "asset_build.h"
 
 #define MAX_UI_NODE_COUNT 1000
 
@@ -54,5 +55,12 @@ NewNode(app_ui *currentUI)
 	return &currentUI->nodes[currentUI->nodeCount++];
 }
 
+struct font_engine
+{
+	b32 isLoaded;
+	asset_font asset;
+
+	u32 textureId;
+};
 
 #endif //APP_H
