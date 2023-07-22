@@ -7,7 +7,7 @@
 
 global video_decode decoder;
 global app_ui mainUi;
-global font_engine g_fontEngine;
+GLuint texture;
 
 internal void
 InitFont(app_state *state, font_engine *engine, char* filename)
@@ -19,8 +19,10 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	u8 *textureData = (u8*)fontFile.contents;
 	textureData += sizeof(asset_font);
 
-	GLuint texture;
 	glGenTextures(1, &texture);
+	
+	// TODO(Ecy): is this a behavior specific to opengl? 
+	// You probably need to generate before use if you want to use multiple textures: texImage2D etc.
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -30,36 +32,52 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, engine->asset.width, engine->asset.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 
 				 textureData);
 	glGenerateMipmap(GL_TEXTURE_2D);
-
+	
 	engine->textureId = texture;
+	
+	state->DEBUGPlatformFreeFileMemory(NULL, &fontFile);
 }
 
 internal void
-DebugRenderText(render_group *group, app_state *appState, char *buffer,
-				u32 size, u32 x, u32 y, u32 scale)
+DebugRenderText(render_group *group, app_state *appState, 
+				char *buffer, u32 bufferSize, 
+				u32 x, u32 y, r32 scale)
 {
+	r32 currentXCursor = 0.0f;
+	
+	r32 downOffset = (r32)g_fontEngine.asset.height * scale;
 	for(u32 index = 0;
-		index < size;
+		index < bufferSize;
 		++index)
 	{
 		char currentCharacter = buffer[index];
+		if(currentCharacter == ' ')
+		{
+			// TODO(Ecy): the space character width should be described in the asset file instead
+			currentXCursor += g_fontEngine.asset.height * 0.2f * scale;
+			continue;
+		}
+		
 		asset_font_glyph *glyph = &g_fontEngine.asset.glyphs[currentCharacter - FONT_BASE_OFFSET];
 		asset_font_glyph *nextGlyph = &g_fontEngine.asset.glyphs[currentCharacter - FONT_BASE_OFFSET + 1];
 		
-		// TODO(Ecy): load uv font coords from assets
-		r32 u = glyph->xoffset;
-		r32 v = glyph->yoffset;
-		r32 glyphWidth = nextGlyph->xoffset;
-		r32 glyphHeight = nextGlyph->yoffset;
+		r32 u = glyph->u;
+		r32 v = 0.0f;
+		r32 glyphWidth  = nextGlyph->u;
+		r32 glyphHeight = glyph->v;
 		
-		// TODO(Ecy): this ratio is queried from assets
-		r32 ratio = 1.5;
+		r32 posX   = (r32)x + currentXCursor;
+		r32 posY   = (r32)y + (r32)glyph->yoffset * scale + downOffset;
+		r32 height = scale * glyph->height;
+		r32 width  = height * glyph->ratio;
 		
-		// NOTE(Ecy): what would be the scale of the font?
-		PushAxisAlignedGlyph(group, appState, x + index * 100, y, scale, scale * ratio, u, v, glyphWidth, glyphHeight);
+		PushAxisAlignedGlyph(group, appState, 
+							 posX, posY, width, height, 
+							 u, v, glyphWidth, glyphHeight);
+		
+		currentXCursor += width;
 	}
 }
-
 
 internal void
 InitApp(app_state *appContext)
@@ -88,18 +106,15 @@ InitApp(app_state *appContext)
 internal void
 UpdateAndRenderApp(app_state *appContext)
 {
-#if 1
 	{
 		// NOTE(Ecy): that is not good ... should not be reseted at this stage
 		debugRenderGroup.vertexCount = 0;
 		debugRenderGroup.indexCount = 0;
 		
-		char *hello = "hello world";
-		DebugRenderText(&debugRenderGroup, appContext, hello, 11, 10, 10, 10);
-		DebugRenderText(&debugRenderGroup, appContext, hello, 11, 500, 100, 100);
-		DebugRenderText(&debugRenderGroup, appContext, hello, 11, 800, 500, 100);
+		char buffer[32];
+		u32 bytesWritten = sprintf(buffer, "Frametime: %.2fms\n", appContext->frameTime * 1000.0f);
+		DebugRenderText(&debugRenderGroup, appContext, buffer, bytesWritten, 10, 10, 0.3f);
 	}
-#endif
 
 #if 0	
 	{
@@ -118,15 +133,14 @@ UpdateAndRenderApp(app_state *appContext)
 	}
 #endif
 
-#if 0
 	if(decoder.isLoaded)
 	{
 		UpdateDecode(&decoder);
+		glBindTexture(GL_TEXTURE_2D, g_bgTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB,
 					 GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
 		glGenerateMipmap(GL_TEXTURE_2D);
 	}
-#endif
-
+	
 	Render();
 }

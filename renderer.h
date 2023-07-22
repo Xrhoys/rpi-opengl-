@@ -22,7 +22,7 @@ struct vertex
 	r32 x, y, z, u, v;
 };
 
- struct render_group
+struct render_group
 {
 	u32      mode;
 	
@@ -46,6 +46,54 @@ Vertex(r32 x, r32 y, r32 z, r32 u, r32 v)
 	
 	return vx;
 }
+
+inline char* 
+getErrorStr(EGLint code)
+{
+	switch(code)
+	{
+		case EGL_SUCCESS: return "No error";
+		case EGL_NOT_INITIALIZED: return "EGL not initialized or failed to initialize";
+		case EGL_BAD_ACCESS: return "Resource inaccessible";
+		case EGL_BAD_ALLOC: return "Cannot allocate resources";
+		case EGL_BAD_ATTRIBUTE: return "Unrecognized attribute or attribute value";
+		case EGL_BAD_CONTEXT: return "Invalid EGL context";
+		case EGL_BAD_CONFIG: return "Invalid EGL frame buffer configuration";
+		case EGL_BAD_CURRENT_SURFACE: return "Current surface is no longer valid";
+		case EGL_BAD_DISPLAY: return "Invalid EGL display";
+		case EGL_BAD_SURFACE: return "Invalid surface";
+		case EGL_BAD_MATCH: return "Inconsistent arguments";
+		case EGL_BAD_PARAMETER: return "Invalid argument";
+		case EGL_BAD_NATIVE_PIXMAP: return "Invalid native pixmap";
+		case EGL_BAD_NATIVE_WINDOW: return "Invalid native window";
+		case EGL_CONTEXT_LOST: return "Context lost";
+		default: return "";
+	}
+}
+
+inline GLenum
+_GetGlErrorAndPrint(const char *file, int line)
+{
+	GLenum errorCode = glGetError();
+	
+	while ((errorCode = glGetError()) != GL_NO_ERROR)
+    {
+        char *error;
+        switch (errorCode)
+        {
+            case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
+            case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
+            case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
+            case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
+            case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        }
+        OutputDebugStringA(error);
+    }
+    return errorCode;
+}
+#define GetGlErrorAndPrint() _GetGlErrorAndPrint(__FILE__, __LINE__) 
 
 // NOTE(Ecy): not sure if this should be kept or not, to remove if not used at all
 inline void
@@ -79,8 +127,8 @@ PushAxisAlignedRect(render_group *group, app_state *state,
 
 inline void
 PushAxisAlignedGlyph(render_group *group, app_state *state,
-					 u32 x, u32 y, r32 width, r32 height, 
-					 r32 u, r32 v, u32 glyphWidth, u32 glyphHeight)
+					 r32 x, r32 y, r32 width, r32 height, 
+					 r32 u, r32 v, r32 u2, r32 v2)
 {
 	// TODO(Ecy): remove this global state later
 	r32 posX = (2.0f * x / state->width) - 1.0f;
@@ -101,10 +149,10 @@ PushAxisAlignedGlyph(render_group *group, app_state *state,
 		NOTE(Ecy): the following is upside down due to the screen orientation convention used
 	*/
 	
-	vt[0] = Vertex(posX,     posHeight, 0.0f,  u, v + glyphHeight);
-	vt[1] = Vertex(posWidth, posHeight, 0.0f,  u + glyphWidth, v + glyphHeight);
-	vt[2] = Vertex(posWidth, posY,      0.0f,  u + glyphWidth, v);
-	vt[3] = Vertex(posX,     posY,      0.0f,  u, v);
+	vt[0] = Vertex(posX,     posHeight, 0.5f,   u, v2);
+	vt[1] = Vertex(posWidth, posHeight, 0.5f,  u2, v2);
+	vt[2] = Vertex(posWidth, posY,      0.5f,  u2,  v);
+	vt[3] = Vertex(posX,     posY,      0.5f,   u,  v);
 	
 	i[0] = group->vertexCount;
 	i[1] = group->vertexCount + 1;

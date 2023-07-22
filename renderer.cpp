@@ -4,10 +4,13 @@
 global render_group debugRenderGroup;
 global render_group uiRenderGroup;
 
+global font_engine g_fontEngine;
+
 GLuint shaderProgram;
 
 GLuint VA0, VB0, EB0, FontV0, FontB0;
-GLuint texture;
+// TODO(Ecy): to remove this global
+GLuint g_bgTexture;
 
 float vertices[] = 
 {
@@ -22,31 +25,7 @@ unsigned int indices[] =
 	1, 2, 3    // second triangle
 };
 
-inline char* 
-getErrorStr(EGLint code)
-{
-	switch(code)
-	{
-		case EGL_SUCCESS: return "No error";
-		case EGL_NOT_INITIALIZED: return "EGL not initialized or failed to initialize";
-		case EGL_BAD_ACCESS: return "Resource inaccessible";
-		case EGL_BAD_ALLOC: return "Cannot allocate resources";
-		case EGL_BAD_ATTRIBUTE: return "Unrecognized attribute or attribute value";
-		case EGL_BAD_CONTEXT: return "Invalid EGL context";
-		case EGL_BAD_CONFIG: return "Invalid EGL frame buffer configuration";
-		case EGL_BAD_CURRENT_SURFACE: return "Current surface is no longer valid";
-		case EGL_BAD_DISPLAY: return "Invalid EGL display";
-		case EGL_BAD_SURFACE: return "Invalid surface";
-		case EGL_BAD_MATCH: return "Inconsistent arguments";
-		case EGL_BAD_PARAMETER: return "Invalid argument";
-		case EGL_BAD_NATIVE_PIXMAP: return "Invalid native pixmap";
-		case EGL_BAD_NATIVE_WINDOW: return "Invalid native window";
-		case EGL_CONTEXT_LOST: return "Context lost";
-		default: return "";
-	}
-}
-
- internal void
+internal void
 InitRenderer(app_state *appContext)
 {
     {
@@ -137,8 +116,9 @@ InitRenderer(app_state *appContext)
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, FontB0);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * 50000 * 6 / 4, NULL, GL_DYNAMIC_DRAW);
 		
-		glGenTextures(1, &texture);
-		glBindTexture(GL_TEXTURE_2D, texture);
+		glGenTextures(1, &g_bgTexture);
+		
+		glBindTexture(GL_TEXTURE_2D, g_bgTexture);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -155,6 +135,11 @@ InitRenderer(app_state *appContext)
 }
 
 internal void
+UpdateBackgroundTexture()
+{
+}
+
+internal void
 Render()
 {
 	// NOTE(Ecy): Replace with suggested frame timing
@@ -164,9 +149,16 @@ Render()
 		glClearColor(0.0f, 0.5f, 0.5f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
+		// NOTE(Ecy): there is a specific API call order here:
+		// 1. Bind data buffers and/or update buffer data
+		// 2. Bind vertex array strcut
+		// 3. Enable attributes
+		// 4. Draw
 		glUseProgram(shaderProgram);
-#if 0
 		{
+			glBindBuffer(GL_ARRAY_BUFFER, VB0);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
+			
 			glBindVertexArray(VA0);
 			
 			glEnableVertexAttribArray(0);
@@ -174,29 +166,28 @@ Render()
 			glEnableVertexAttribArray(1);
 			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),  (void*)(3 * sizeof(float)));
 			
-			glBindTexture(GL_TEXTURE_2D, texture);
-			glBindBuffer(GL_ARRAY_BUFFER, VB0);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EB0);
+			glBindTexture(GL_TEXTURE_2D, g_bgTexture);
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		}
-#endif
 		
 		// NOTE(Ecy): slow, experimental font engine debugging layer
 		{
+			glBindBuffer(GL_ARRAY_BUFFER, FontV0);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, FontB0);
+			
+			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex) * debugRenderGroup.vertexCount, debugRenderGroup.vertices);
+			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(u32) * debugRenderGroup.indexCount, debugRenderGroup.indices);
+			
 			glBindVertexArray(VA0);
 			
 			glEnableVertexAttribArray(0);
 			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
 			glEnableVertexAttribArray(1);
 			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),  (void*)(3 * sizeof(float)));
-			
-			glBindTexture(GL_TEXTURE_2D, 2);
-			
-			glBindBuffer(GL_ARRAY_BUFFER, FontV0);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex) * debugRenderGroup.vertexCount, debugRenderGroup.vertices);
-			
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, FontB0);
-			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(u32) * debugRenderGroup.indexCount, debugRenderGroup.indices);
+						
+			glBindTexture(GL_TEXTURE_2D, g_fontEngine.textureId);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 			
 			glDrawElements(GL_TRIANGLES, debugRenderGroup.indexCount, GL_UNSIGNED_INT, 0);
 		}
@@ -205,5 +196,6 @@ Render()
 		{
 			
 		}
+		
 	}
 }

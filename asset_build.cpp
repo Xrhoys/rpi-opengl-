@@ -195,9 +195,9 @@ int main()
 		stbtt_InitFont(&font, (u8*)ttfFile.contents, stbtt_GetFontOffsetForIndex((u8*)ttfFile.contents, 0));		
 
 		// NOTE(Ecy): allocate enough memory for output buffer
-		char *writeBuffer = (char*)malloc(1024*1024);
+		u8 *writeBuffer = (u8*)malloc(1024*1024);
 
-		char *cursor = writeBuffer;
+		u8 *cursor = writeBuffer;
 
 		u32 maxHeight = 0;
 		u32 totalWidth = 0;
@@ -210,16 +210,19 @@ int main()
 			++index)
 		{
 			i32 width, height, xoff, yoff;
-			u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 30.0f), 
+			u8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, 120.0f), 
 												  index, &width, &height, &xoff, &yoff);
 
 			memcpy(cursor, bitmap, width * height);
 			
 			asset_font_glyph *currentGlyph = &fontData.glyphs[index - FONT_BASE_OFFSET];
 			currentGlyph->glyph   = index;
-			currentGlyph->offset  = cursor - writeBuffer;
+			currentGlyph->_offset  = cursor - writeBuffer;
 			currentGlyph->width   = width;
 			currentGlyph->height  = height;
+			currentGlyph->ratio   = (r32)width / (r32)height;
+			currentGlyph->xoffset = xoff;
+			currentGlyph->yoffset = yoff;
 
 			totalWidth += width;
 			if(height > maxHeight) maxHeight = height;
@@ -241,15 +244,15 @@ int main()
 		{
 			asset_font_glyph *currentGlyph = &fontData.glyphs[index];
 
-			u32 offsetWidth = currentGlyph->width + currentLineWidth;
+			r32 offsetWidth = (r32)currentLineWidth;
 
-			currentGlyph->xoffset = (r32)offsetWidth / bitmapWidth;
-			currentGlyph->yoffset = (r32)currentGlyph->height / bitmapHeight;
+			currentGlyph->u = offsetWidth / bitmapWidth;
+			currentGlyph->v = (r32)currentGlyph->height / bitmapHeight;
 
 			currentLineWidth += currentGlyph->width;
 		}
 
-		char *pixelMapBuffer = (char*)malloc(10*1024*1024);
+		u8 *pixelMapBuffer = (u8*)malloc(10*1024*1024);
 		memcpy(pixelMapBuffer, &fontData, sizeof(asset_font));
 
 		cursor = pixelMapBuffer + sizeof(asset_font);
@@ -265,20 +268,30 @@ int main()
 				asset_font_glyph *currentGlyph = &fontData.glyphs[index];
 				if (line >= fontData.glyphs[index].height)
 				{
-					cursor += currentGlyph->width;
+					cursor += currentGlyph->width * 4;
 				}
 				else
 				{
-					char *writeBufferOffset = writeBuffer + currentGlyph->offset + currentGlyph->width * line;
+					u8 *writeBufferOffset = writeBuffer + currentGlyph->_offset + currentGlyph->width * line;
+					
+					u32 *dest = (u32*)cursor;
+					for(u32 pixelIndex = 0;
+						pixelIndex < currentGlyph->width;
+						++pixelIndex)
+					{
+						u8 pixel = writeBufferOffset[pixelIndex];
+						*dest++ = ((pixel << 24) |
+								   (pixel << 16) |
+								   (pixel <<  8) |
+								   (pixel <<  0) );
+						cursor += 4;
+					}
 
-					memcpy(cursor, writeBufferOffset, currentGlyph->width);
-
-					cursor += currentGlyph->width;
 				}
 
 			}
 		}
 
-		WriteEntireFile(NULL, "asset_data", fontData.width * fontData.height + sizeof(asset_font), pixelMapBuffer);
+		WriteEntireFile(NULL, "asset_data", fontData.width * fontData.height * 4 + sizeof(asset_font), pixelMapBuffer);
 	}
 }

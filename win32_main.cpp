@@ -37,7 +37,7 @@ Win32GetWallClock()
 internal
 DEBUG_CLOCK_GET_TIME(Win32GetLastElapsed)
 {
-     u64 currentCounter = Win32GetWallClock();
+    u64 currentCounter = Win32GetWallClock();
 	r32 elapsed = Win32GetSecondsElapsed(g_lastCounter, currentCounter);
     
     return elapsed;
@@ -214,7 +214,7 @@ WinMain(HINSTANCE Instance,
 	
 	EGLContext eglContext = eglCreateContext(eglDisplay, windowConfig, NULL, contextAttributes);
 	
-	  i32 eglNumConfigs;
+	i32 eglNumConfigs;
 	eglGetConfigs(eglDisplay, NULL, 0, &eglNumConfigs);
 	EGLConfig *eglConfigs = (EGLConfig*)malloc(sizeof(EGLConfig) * eglNumConfigs);
 	
@@ -233,14 +233,14 @@ WinMain(HINSTANCE Instance,
 		
 		g_bootCounter = counter.QuadPart;
 		g_lastCounter = counter.QuadPart;
-		g_perfCount = perfCountFrequencyResult.QuadPart;
+		g_perfCount   = perfCountFrequencyResult.QuadPart;
 		
-		g_state.clock = 0;
-		g_state.frameTime = 0;
-		g_state.getTime = Win32GetLastElapsed;
+		g_state.clock     = 0.0f;
+		g_state.frameTime = 0.0f;
+		g_state.getTime   = Win32GetLastElapsed;
 			
-			// NOTE(Ecy): needs to set at runtime + dynamic with resize event
-			g_state.width = WINDOW_WIDTH;
+		// NOTE(Ecy): needs to set at runtime + dynamic with resize event
+		g_state.width = WINDOW_WIDTH;
 		g_state.height = WINDOW_HEIGHT;
 		
 		g_state.DEBUGPlatformReadEntireFile  = Win32ReadEntireFile;
@@ -268,18 +268,18 @@ WinMain(HINSTANCE Instance,
 		
 		eglSwapBuffers(eglDisplay, eglSurface);
 		
-			{
-				u64 endCycleCounter = __rdtsc();
-				u64 cyclesElapsed   = endCycleCounter - lastCycleCount;
-				cyclesPerFrame      = cyclesElapsed / (1000.0f * 1000.0f);
-				
-				lastCycleCount      = endCycleCounter;
-			g_lastCounter       = Win32GetWallClock();
+		{
+			u64 endCycleCounter = __rdtsc();
+			u64 cyclesElapsed   = endCycleCounter - lastCycleCount;
+			cyclesPerFrame      = cyclesElapsed / (1000.0f * 1000.0f);
 			
-			g_state.clock = Win32GetWallClock();
-			g_state.frameTime = Win32GetLastElapsed();
-			}
+			g_state.clock       = Win32GetWallClock();
+			g_state.frameTime   = Win32GetLastElapsed();
+			
+			lastCycleCount      = endCycleCounter;
+			g_lastCounter       = Win32GetWallClock();
 		}
+	}
 	
     DestroyWindow(hwnd);
     UnregisterClass(wc.lpszClassName, wc.hInstance);
