@@ -3,9 +3,11 @@ debug/*main*
 
 # Exclude cl debug files
 debug/win32*
+debug/*.obj
 debug/vc140.pdb
 debug/.vs/
 
 # Exclude sample data folder
 data
 *.mp4
+
