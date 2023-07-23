@@ -216,7 +216,8 @@ WinMain(HINSTANCE Instance,
 	
 	i32 eglNumConfigs;
 	eglGetConfigs(eglDisplay, NULL, 0, &eglNumConfigs);
-	EGLConfig *eglConfigs = (EGLConfig*)malloc(sizeof(EGLConfig) * eglNumConfigs);
+	EGLConfig *eglConfigs = (EGLConfig*)VirtualAlloc(0, sizeof(EGLConfig) * eglNumConfigs, 
+													 MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 	
 	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	

@@ -4,9 +4,11 @@
 #define APP_H
 
 #include "platform.h"
+#include "math.h"
 #include "video_decode.h"
 #include "asset_build.h"
 #include "renderer.h"
+#include "utils.h"
 
 #define Kilobytes(n) n * 1024
 #define Megabytes(n) n * 1024 * 1024
@@ -21,7 +23,7 @@ enum ui_node_type
 	UI_NODE_FRAME,
 	UI_NODE_BUTTON,
 	UI_NODE_TEXT,
-		
+
 	UI_NODE_TYPE_COUNT,
 };
 
@@ -38,6 +40,10 @@ struct ui_node
 {
 	ui_node_type type;
 	
+	// TODO(Ecy): having referenecs in pointer is very dangerous in case 
+	// - it gets unpaged by the OS 
+	// - cleared by other parts of the program
+	// The suggestion is to have an HASH/ID based system to find in a bucket, the linked nodes
 	ui_node *parent;
 	
 	// NOTE(Ecy): this is a fixed size cuz i can't be bothered to allocate memory for that yet, 
@@ -47,13 +53,13 @@ struct ui_node
 	u32     childCount;
 	
 	// UI Node properties
-	u32 width;
-	u32 height;
+	r32 width;
+	r32 height;
 	color background;
 	
 	// NOTE(Ecy): relative to parent position
-	i32 top;
-	i32 left;	
+	r32 top;
+	r32 left;
 };
 
 struct app_ui
@@ -65,11 +71,16 @@ struct app_ui
 	ui_node *nodes[MAX_UI_NODE_COUNT];
 	
 	u32 nodeCount;
+	
+	// NOTE(Ecy): UI building context
+	ui_node *currentContextNode;
 };
 
 inline void
 AddNode(ui_node *parent, ui_node *current)
 {
+	//Assert(parent->childCount < 5);
+	
 	current->parent = parent;
 	parent->child[parent->childCount++] = current;
 }
@@ -79,6 +90,8 @@ NewNode(app_ui *currentUI)
 {
 	ui_node *node = &currentUI->_nodes[currentUI->nodeCount++];
 	
+	// NOTE(Ecy): intent is to ZeroMemory(), platform independant. Since the UI tree is rebuilt every frame. 
+	// But not sure what's the generated ASM in CL/GCC 
 	*node = {};
 	
 	return node;
@@ -88,50 +101,8 @@ struct font_engine
 {
 	b32 isLoaded;
 	asset_font asset;
-
+	
 	u32 textureId;
 };
-
-// NOTE(Ecy): linear/bump allocator
-struct memory_arena
-{
-	u8  *_start;
-	u8  *cursor;
-	
-	u32  size;
-};
-
-struct memory_block
-{
-	u8 *_start;
-	u8  _id;
-	
-	b32 isUsed;
-	
-	u32 size;
-};
-
-inline memory_arena 
-CreateArenaMem(u8* memory, u32 size)
-{
-	memory_arena arena;
-	
-	arena._start = memory;
-	arena.cursor = arena._start;
-	arena.size = size;
-	
-	return arena;
-}
-
-inline u8*
-LinearAlloc(memory_arena *arena, u32 size)
-{
-	Assert(arena->cursor + size < arena->_start + arena->size);
-	
-	u8 *returnCursor = arena->cursor;
-	arena->cursor    += size;
-	
-	return returnCursor;
-}
 
 #endif //APP_H

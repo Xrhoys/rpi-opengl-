@@ -1,4 +1,3 @@
-
 #include "renderer.h"
 
 global render_group debugRenderGroup;
@@ -6,16 +5,14 @@ global render_group uiRenderGroup;
 
 global font_engine g_fontEngine;
 
-GLuint shaderProgram;
+internal GLuint shaderProgram;
+internal GLuint VAO;
+internal GLuint g_glBuffers[BUFFER_COUNT];
 
-GLuint VAO;
-
-GLuint g_glBuffers[BUFFER_COUNT];
-
-global v4 clearBackground = RGBToFloat(LIGHTGRAY);
+internal v4 clearBackground = RGBToFloat(LIGHTGRAY);
 
 // TODO(Ecy): to remove this global
-GLuint g_bgTexture, g_emptyTexture;
+internal GLuint g_bgTexture, g_emptyTexture;
 
 float vertices[] = 
 {
@@ -155,13 +152,6 @@ InitRenderer()
 		
 		//glEnable(GL_DEPTH_TEST);
     }
-	
-	// TODO(Ecy): remove hardcoded values
-	debugRenderGroup.vertices = (vertex*)malloc(1024 * 1024);
-	debugRenderGroup.indices  = (u32*)malloc(1024 * 1024);
-	
-	uiRenderGroup.vertices = (vertex*)malloc(10 * 1024 * 1024);
-	uiRenderGroup.indices  = (u32*)malloc(10 * 1024 * 1024);
 }
 
 internal void

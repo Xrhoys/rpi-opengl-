@@ -11,11 +11,8 @@
 
 #define GL_ES_VERSION_3_0 1
 
-
-#define STB_TRUETYPE_IMPLEMENTATION 1
-#include "stb_truetype.h"
-
 #include "asset_build.h"
+#include "utils.h"
 
 // Custom raylib color palette for amazing visuals on WHITE background
 #define LIGHTGRAY  { 200, 200, 200, 255 }   // Light Gray
@@ -63,31 +60,6 @@ union vertex
 	};
 };
 
-union v4
-{
-	struct
-	{
-		r32 r, g, b, a;
-	};
-	
-	struct
-	{
-		r32 x, y, z, w;
-	};
-	
-	r32 E[4];
-};
-
-union color
-{
-	struct
-	{
-		u8 r, g, b, a;
-	};
-	
-	u8 E[4];
-};
-
 struct render_group
 {
 	app_state *appContext;
@@ -98,6 +70,18 @@ struct render_group
 	
 	u32      *indices;
 	u32      indexCount;
+	
+	memory_arena *arena;
+};
+
+union color
+{
+	struct
+	{
+		u8 r, g, b, a;
+	};
+	
+	u8 E[4];
 };
 
 inline vertex
@@ -194,9 +178,23 @@ RGBToFloat(color cl)
 	return vec;
 }
 
+inline render_group
+CreateRenderGroup(app_state *appContext, memory_arena *arena, u32 vArraySize, u32 iArraySize)
+{
+	render_group render;
+	
+	render.appContext = appContext;
+	render.arena = arena;
+	
+	render.vertices = (vertex*)LinearAlloc(arena, vArraySize);
+	render.indices  = (u32*)LinearAlloc(arena, iArraySize);
+	
+	return render;
+};
+
 // NOTE(Ecy): not sure if this should be kept or not, to remove if not used at all
 inline void
-PushAxisAlignedRect(render_group *group, u32 x, u32 y, u32 width, u32 height, r32 *color)
+PushAxisAlignedRect(render_group *group, r32 x, r32 y, r32 width, r32 height, r32 *color)
 {
 	Assert(group->appContext);
 	

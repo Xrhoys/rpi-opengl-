@@ -1,4 +1,5 @@
 #include "app.h"
+
 #include "renderer.cpp"
 #include "video_decode.cpp"
 
@@ -8,6 +9,45 @@
 global video_decode decoder;
 global app_ui mainUi;
 GLuint texture;
+global memory_arena g_mainArena;
+
+/*
+// The following describe an Immediate mode GUI API 
+*/
+
+// UI Frame element
+internal b32
+UIFrameBegin(char *title, v2 pos, v2 size, color background)
+{
+	ui_node *node = NewNode(&mainUi);
+	
+	// NOTE(Ecy): this works like push and pop id
+	if(mainUi.currentContextNode)
+	{
+		node->parent = mainUi.currentContextNode;
+		//AddNode(node->parent, node);
+	}
+	
+	mainUi.currentContextNode = node;
+	
+	node->left   = pos.x;
+	node->top    = pos.y;
+	node->width  = size.x;
+	node->height = size.y;
+	node->background = background;
+	
+	return true;
+}
+
+internal b32
+UIEnd()
+{
+	Assert(mainUi.currentContextNode);
+	
+	mainUi.currentContextNode = mainUi.currentContextNode->parent;
+	return true;
+}
+
 
 internal void
 InitFont(app_state *state, font_engine *engine, char* filename)
@@ -93,6 +133,17 @@ InitApp(app_state *appContext)
 		uiRenderGroup.appContext = appContext;
 		debugRenderGroup.appContext = appContext;
 	}
+	
+	{
+		g_mainArena = CreateArenaMem((u8*)appContext->permanentStorage, appContext->permanentStorageSize);
+	}
+	
+	{
+		// TODO(Ecy): until it becomes a problem ...
+		debugRenderGroup = CreateRenderGroup(appContext, &g_mainArena, Megabytes(1), Megabytes(1));
+		uiRenderGroup    = CreateRenderGroup(appContext, &g_mainArena, Megabytes(1), Megabytes(1));
+	}
+	
 }
 
 internal void
@@ -114,59 +165,18 @@ UpdateAndRenderApp(app_state *appContext)
 		mainUi.nodeCount = 0;
 		
 		{
-			// NOTE(Ecy): order matters, because it's getting updated in a single for loop pass
-			ui_node *root       = NewNode(&mainUi);
-			ui_node *childNode1 = NewNode(&mainUi);
-			ui_node *childNode2 = NewNode(&mainUi);
-			ui_node *childNode3 = NewNode(&mainUi);
-			ui_node *childNode4 = NewNode(&mainUi);
-			ui_node *childNode5 = NewNode(&mainUi);
-			
-			AddNode(root,       childNode1);
-			AddNode(childNode1, childNode2);
-			AddNode(childNode2, childNode3);
-			AddNode(root,       childNode4);
-			AddNode(root,       childNode5);
-			
-			root->top = 200;
-			root->left = 200;
-			root->width = 1000;
-			root->height = 1000;
-			root->background = RED;
-
-			childNode1->top = 200;
-			childNode1->left = 200;
-			childNode1->width = 200;
-			childNode1->height = 200;
-			childNode1->background = BLUE;
-			
-			childNode2->top = 20;
-			childNode2->left = 20;
-			childNode2->width = 100;
-			childNode2->height = 100;
-			childNode2->background = GREEN;
-			
-			childNode3->top = 10;
-			childNode3->left = 10;
-			childNode3->width = 50;
-			childNode3->height = 30;
-			childNode3->background = GOLD;
-			
-			childNode4->top = 10;
-			childNode4->left = 450;
-			childNode4->width = 400;
-			childNode4->height = 100;
-			childNode4->background = LIME;
-			
-			childNode5->top = 10;
-			childNode5->left = 50;
-			childNode5->width = 10;
-			childNode5->height = 1000;
-			childNode5->background = VIOLET;
-			
+			// NOTE(Ecy): test im mode gui
+			if(UIFrameBegin("root", { 100.0f, 100.0f }, { 200.0f, 200.0f }, RED))
+			{
+				if(UIFrameBegin("kid", { 50.0f, 5.0f }, { 100.0f, 50.0f }, BLUE))
+				{
+					UIEnd();
+				}
+				UIEnd();
+			}
 		}
 		
-		// Generate rects for main UI, skipping root
+		Assert(!mainUi.currentContextNode)
 		for(u32 index = 0;
 			index < mainUi.nodeCount;
 			++index)
