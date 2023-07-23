@@ -45,6 +45,8 @@ DebugRenderText(render_group *group, app_state *appState,
 {
 	r32 currentXCursor = 0.0f;
 	
+	color textColor = GOLD;
+	
 	r32 downOffset = (r32)g_fontEngine.asset.height * scale;
 	for(u32 index = 0;
 		index < bufferSize;
@@ -71,9 +73,7 @@ DebugRenderText(render_group *group, app_state *appState,
 		r32 height = scale * glyph->height;
 		r32 width  = height * glyph->ratio;
 		
-		PushAxisAlignedGlyph(group, appState, 
-							 posX, posY, width, height, 
-							 u, v, glyphWidth, glyphHeight);
+		PushAxisAlignedGlyph(group, posX, posY, width, height, u, v, glyphWidth, glyphHeight, (r32*)&RGBToFloat(textColor));
 		
 		currentXCursor += width;
 	}
@@ -82,24 +82,16 @@ DebugRenderText(render_group *group, app_state *appState,
 internal void
 InitApp(app_state *appContext)
 {
-	InitRenderer(appContext);
+	InitRenderer();
 	InitFont(appContext, &g_fontEngine, "data/asset_data");
 	
 	LoadVideoContext(&decoder, SAMPLE_DATA);
 	
 	{
-		ui_node *root       = NewNode(&mainUi);
-		ui_node *childNode1 = NewNode(&mainUi);
-		ui_node *childNode2 = NewNode(&mainUi);
-		ui_node *childNode3 = NewNode(&mainUi);
-		ui_node *childNode4 = NewNode(&mainUi);
-		ui_node *childNode5 = NewNode(&mainUi);
-		
-		AddNode(root,       childNode1);
-		AddNode(childNode1, childNode2);
-		AddNode(childNode2, childNode3);
-		AddNode(root,       childNode4);
-		AddNode(root,       childNode5);
+		// NOTE(Ecy): not sure if this is the best solution, but for the time being, 
+		// it removes app_state from PushRect render queue calls
+		uiRenderGroup.appContext = appContext;
+		debugRenderGroup.appContext = appContext;
 	}
 }
 
@@ -116,22 +108,82 @@ UpdateAndRenderApp(app_state *appContext)
 		DebugRenderText(&debugRenderGroup, appContext, buffer, bytesWritten, 10, 10, 0.3f);
 	}
 
-#if 0	
 	{
 		uiRenderGroup.vertexCount = 0;
 		uiRenderGroup.indexCount = 0;
+		mainUi.nodeCount = 0;
 		
-		// Generate rects for main UI
+		{
+			// NOTE(Ecy): order matters, because it's getting updated in a single for loop pass
+			ui_node *root       = NewNode(&mainUi);
+			ui_node *childNode1 = NewNode(&mainUi);
+			ui_node *childNode2 = NewNode(&mainUi);
+			ui_node *childNode3 = NewNode(&mainUi);
+			ui_node *childNode4 = NewNode(&mainUi);
+			ui_node *childNode5 = NewNode(&mainUi);
+			
+			AddNode(root,       childNode1);
+			AddNode(childNode1, childNode2);
+			AddNode(childNode2, childNode3);
+			AddNode(root,       childNode4);
+			AddNode(root,       childNode5);
+			
+			root->top = 200;
+			root->left = 200;
+			root->width = 1000;
+			root->height = 1000;
+			root->background = RED;
+
+			childNode1->top = 200;
+			childNode1->left = 200;
+			childNode1->width = 200;
+			childNode1->height = 200;
+			childNode1->background = BLUE;
+			
+			childNode2->top = 20;
+			childNode2->left = 20;
+			childNode2->width = 100;
+			childNode2->height = 100;
+			childNode2->background = GREEN;
+			
+			childNode3->top = 10;
+			childNode3->left = 10;
+			childNode3->width = 50;
+			childNode3->height = 30;
+			childNode3->background = GOLD;
+			
+			childNode4->top = 10;
+			childNode4->left = 450;
+			childNode4->width = 400;
+			childNode4->height = 100;
+			childNode4->background = LIME;
+			
+			childNode5->top = 10;
+			childNode5->left = 50;
+			childNode5->width = 10;
+			childNode5->height = 1000;
+			childNode5->background = VIOLET;
+			
+		}
+		
+		// Generate rects for main UI, skipping root
 		for(u32 index = 0;
 			index < mainUi.nodeCount;
 			++index)
 		{
-			ui_node *node = &mainUi.nodes[index];
+			// TODO(Ecy): order node list for Z depth testing, then use mainUi.nodes instead
+			ui_node *node = &mainUi._nodes[index];
 			
+			if(node->parent)
+			{
+				node->top += node->parent->top;
+				node->left += node->parent->left;
+			}
 			
+			PushAxisAlignedRect(&uiRenderGroup, node->top, node->left, node->width, node->height, 
+								(r32*)&RGBToFloat(node->background));
 		}
 	}
-#endif
 
 	if(decoder.isLoaded)
 	{

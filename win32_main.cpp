@@ -246,6 +246,23 @@ WinMain(HINSTANCE Instance,
 		g_state.DEBUGPlatformReadEntireFile  = Win32ReadEntireFile;
 		g_state.DEBUGPlatformWriteEntireFile = Win32WriteEntireFile;
 		g_state.DEBUGPlatformFreeFileMemory  = Win32FreeFile;
+		
+		g_state.permanentStorageSize = Megabytes(256);
+		g_state.permanentStorage = VirtualAlloc(0, g_state.permanentStorageSize, 
+												  MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+		if(!g_state.permanentStorage)
+		{
+			// TODO(Ecy): log errors
+			return -1;
+		}
+		g_state.transientStorageSize = Gigabytes(1);
+		g_state.transientStorage     = VirtualAlloc(0, g_state.transientStorageSize, 
+													  MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+		if(!g_state.transientStorage)
+		{
+			// TODO(Ecy): log errors
+			return -1;
+		}	
 	}
 	
 	InitApp(&g_state);
