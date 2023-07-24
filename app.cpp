@@ -85,7 +85,7 @@ DebugRenderText(render_group *group, app_state *appState,
 {
 	r32 currentXCursor = 0.0f;
 	
-	color textColor = GOLD;
+	v4 color = RGBToFloat(GOLD);
 	
 	r32 downOffset = (r32)g_fontEngine.asset.height * scale;
 	for(u32 index = 0;
@@ -113,7 +113,7 @@ DebugRenderText(render_group *group, app_state *appState,
 		r32 height = scale * glyph->height;
 		r32 width  = height * glyph->ratio;
 		
-		PushAxisAlignedGlyph(group, posX, posY, width, height, u, v, glyphWidth, glyphHeight, (r32*)&RGBToFloat(textColor));
+		PushAxisAlignedGlyph(group, posX, posY, width, height, u, v, glyphWidth, glyphHeight, (r32*)&color);
 		
 		currentXCursor += width;
 	}
@@ -190,8 +190,10 @@ UpdateAndRenderApp(app_state *appContext)
 				node->left += node->parent->left;
 			}
 			
+			v4 color = RGBToFloat(node->background);
+			
 			PushAxisAlignedRect(&uiRenderGroup, node->top, node->left, node->width, node->height, 
-								(r32*)&RGBToFloat(node->background));
+								(r32*)&color);
 		}
 	}
 
