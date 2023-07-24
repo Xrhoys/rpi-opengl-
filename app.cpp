@@ -64,7 +64,7 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	// TODO(Ecy): is this a behavior specific to opengl? 
 	// You probably need to generate before use if you want to use multiple textures: texImage2D etc.
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -75,7 +75,7 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	
 	engine->textureId = texture;
 	
-	state->DEBUGPlatformFreeFileMemory(NULL, &fontFile);
+	state->DEBUGPlatformFreeFileMemory(NULL, &fontFile.contents);
 }
 
 internal void
@@ -143,6 +143,7 @@ InitApp(app_state *appContext)
 		debugRenderGroup = CreateRenderGroup(appContext, &g_mainArena, Megabytes(1), Megabytes(1));
 		uiRenderGroup    = CreateRenderGroup(appContext, &g_mainArena, Megabytes(1), Megabytes(1));
 	}
+	
 	
 }
 
