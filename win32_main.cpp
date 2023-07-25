@@ -1,11 +1,11 @@
 #include "app.h"
 
 #include <windows.h>
+#include <hidusage.h>
 #include <stdio.h>
 #include <tchar.h>
 
 #include "win32_main.h"
-
 // TODO(Ecy): to exclude with proper platform code
 #include "app.cpp"
 
@@ -14,6 +14,8 @@ global u64       g_bootCounter;
 global u64       g_lastCounter;
 global u64       lastCycleCount;
 global r64       cyclesPerFrame;
+
+global app_state g_state;
 
 internal r32
 Win32GetSecondsElapsed(u64 start, u64 end)
@@ -32,6 +34,146 @@ Win32GetWallClock()
     LARGE_INTEGER result;
     QueryPerformanceCounter(&result);
     return result.QuadPart;
+}
+
+internal void
+ProcessKeyboardMessage(app_input_state *state, b32 isDown)
+{
+    if(state->endedDown != isDown)
+    {
+        state->endedDown = isDown;
+        ++state->halfTransitionCount;
+		
+		if(isDown)
+		{
+			state->startHoldTime = Win32GetSecondsElapsed(g_bootCounter, g_lastCounter);
+		}
+		else
+		{
+			state->startHoldTime = INFINITY;
+		}
+    }
+}
+
+internal void
+Win32ProcessInputEvent(app_keyboard_input *keyInput, app_pointer_input *pointerInput, LPARAM *lParam)
+{
+	u32 dwSize;
+	
+	HRAWINPUT input = (HRAWINPUT)*lParam;
+	
+	GetRawInputData(input, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+	
+	if(dwSize != 0)
+	{
+		// TODO: Experiment, moving input on a secondary thread
+		// Could have latency concerns
+		char buffer[256]; // 1KB, may be enough?
+		LPBYTE *lpb = (LPBYTE *)buffer;
+		
+		GetRawInputData(input, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
+		
+		RAWINPUT* raw = (RAWINPUT *)lpb;
+		
+		if(raw->header.dwType == RIM_TYPEKEYBOARD)
+		{
+			RAWKEYBOARD keyboardData = raw->data.keyboard;
+#if 0			
+			// NOTE: doesn't seem like this is necessary
+			b32 wasDown = ((keyboardData.Message & (1 << 30)) != 0);
+			b32 isDown  = ((keyboardData.Message & (1 << 31)) == 0);
+#endif
+			b32 isDown = keyboardData.Flags == RI_KEY_MAKE;
+			u8  key     = keyboardData.VKey;
+#if 1
+			char buffer[256];
+			_snprintf_s(buffer, sizeof(buffer), "State: %c, Input: %d\n", key, isDown);
+			OutputDebugStringA(buffer);
+#endif
+			if (key == 'W')
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_W], isDown);
+			}
+			else if (key == 'A')
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_A], isDown);
+			}
+			else if (key == 'S')
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_S], isDown);
+			}
+			else if (key == 'D')
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_D], isDown);
+			}
+			else if (key == VK_ESCAPE)
+			{
+				g_state.running = false;
+			}
+			else if (key == VK_MENU)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_ALT], isDown);
+			}
+			else if (key == VK_CONTROL)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_CTRL], isDown);
+			}
+			else if (key == VK_SPACE)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_SPACE], isDown);
+			}
+			else if (key == VK_F1)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F1], isDown);
+			}
+			else if (key == VK_F2)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F2], isDown);
+			}
+			else if (key == VK_F3)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F3], isDown);
+			}
+			else if (key == VK_F4)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F4], isDown);
+			}
+			else if (key == VK_F5)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F5], isDown);
+			}
+			else if (key == VK_F6)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F6], isDown);
+			}
+		}
+		else if (raw->header.dwType == RIM_TYPEMOUSE)
+		{
+			RAWMOUSE mouseData = raw->data.mouse;
+			
+			pointerInput->mouseX += pointerInput->sensX * mouseData.lLastX;
+			pointerInput->mouseY += pointerInput->sensY * mouseData.lLastY;
+			
+			u16 leftDown   = mouseData.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN;
+			u16 rightDown  = mouseData.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN;
+			u16 middleDown = mouseData.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN;
+			
+			// NOTE(Ecy): mouse button flag mapping
+			// https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-rawmouse
+			ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], leftDown == RI_MOUSE_LEFT_BUTTON_DOWN);
+			ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_RIGHT],  rightDown == RI_MOUSE_RIGHT_BUTTON_DOWN);
+			ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_MIDDLE],  middleDown == RI_MOUSE_MIDDLE_BUTTON_DOWN);
+			
+			// NOTE(Ecy): handle vertical wheel scrolling
+			if((mouseData.usButtonFlags & RI_MOUSE_WHEEL) == RI_MOUSE_WHEEL)
+			{
+				r32 wheelDelta = (r32)((i16)mouseData.usButtonData);
+				r32 numTicks   = wheelDelta / WHEEL_DELTA;
+				
+				pointerInput->mouseZ += numTicks;
+			}
+		}
+	}
 }
 
 internal
@@ -221,7 +363,14 @@ WinMain(HINSTANCE Instance,
 	
 	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	
-	app_state g_state;
+	app_keyboard_input keyInputs[2] = {};
+	app_keyboard_input *oldKeyInput = &keyInputs[0];
+	app_keyboard_input *newKeyInput = &keyInputs[1];
+	
+	app_pointer_input pointerInputs[2] = {};
+	app_pointer_input *oldPointerInput = &pointerInputs[0];
+	app_pointer_input *newPointerInput = &pointerInputs[1];
+	
 	{
 		g_state.running = true;
 		
@@ -239,7 +388,7 @@ WinMain(HINSTANCE Instance,
 		g_state.clock     = 0.0f;
 		g_state.frameTime = 0.0f;
 		g_state.getTime   = Win32GetLastElapsed;
-			
+		
 		// NOTE(Ecy): needs to set at runtime + dynamic with resize event
 		g_state.width = WINDOW_WIDTH;
 		g_state.height = WINDOW_HEIGHT;
@@ -263,24 +412,122 @@ WinMain(HINSTANCE Instance,
 		{
 			// TODO(Ecy): log errors
 			return -1;
-		}	
+		}
+		g_state.isInitialized = true;
+		
+		// NOTE(Ecy): windows raw input api
+		RAWINPUTDEVICE devices[2];
+		
+		devices[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+		devices[0].usUsage     = HID_USAGE_GENERIC_KEYBOARD;
+		devices[0].dwFlags     = RIDEV_NOLEGACY;
+		devices[0].hwndTarget  = 0;
+		
+		devices[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
+		devices[1].usUsage     = HID_USAGE_GENERIC_MOUSE;
+		devices[1].dwFlags     = RIDEV_NOLEGACY;
+		devices[1].hwndTarget  = 0;
+		
+		if(RegisterRawInputDevices(devices, 2, sizeof(devices[0])) == false)
+		{
+			// TODO(Ecy): log errors
+		}
+		
+		g_state.keyboards[0] = oldKeyInput;
+		g_state.pointers[0]  = oldPointerInput;
+		
+		g_state.keyboards[0]->isConnected = true;
+		g_state.pointers[0]->isConnected = true;
+		
+		for(u32 index = 0;
+			index < KEY_COUNT;
+			index++)
+		{
+			g_state.keyboards[0]->keys[index].startHoldTime = INFINITY;
+		}
+		
+		for(u32 index = 0;
+			index < MOUSE_BUTTON_COUNT;
+			index++)
+		{
+			g_state.pointers[0]->buttons[index].startHoldTime = INFINITY;
+		}
+		
 	}
 	
 	InitApp(&g_state);
 	
 	while(g_state.running)
 	{
+		// NOTE(Ecy): reset input
+		{
+			*newKeyInput     = {};
+			*newPointerInput = {};
+			
+			for(u32 index = 0;
+				index < KEY_COUNT;
+				++index)
+			{
+				newKeyInput->keys[index].endedDown = oldKeyInput->keys[index].endedDown;
+				newKeyInput->keys[index].halfTransitionCount = oldKeyInput->keys[index].halfTransitionCount;
+				
+				if(newKeyInput->keys[index].endedDown)
+				{
+					newKeyInput->keys[index].startHoldTime = oldKeyInput->keys[index].startHoldTime;
+				}
+			}
+			
+			for(u32 index = 0;
+				index < MOUSE_BUTTON_COUNT;
+				++index)
+			{
+				newPointerInput->buttons[index].endedDown = oldPointerInput->buttons[index].endedDown;
+				newPointerInput->buttons[index].halfTransitionCount = oldPointerInput->buttons[index].halfTransitionCount;
+				if(newPointerInput->buttons[index].endedDown)
+				{
+					newPointerInput->buttons[index].startHoldTime = oldPointerInput->buttons[index].startHoldTime;
+				}
+			}
+		}
+		
 		MSG msg;
-        while (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        while(PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
         {
+			switch(msg.message)
+			{
+				case WM_QUIT:
+				{
+					g_state.running = false;
+				}break;
+				case WM_INPUT:
+				{
+					Win32ProcessInputEvent(newKeyInput, newPointerInput, &msg.lParam);
+				}break;
+				default:
+				{
+					// NOTE(Ecy): non handled
+				}break;
+			}
+			
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
-			if (msg.message == WM_QUIT)
-                g_state.running = 0;
         }
+		if(!g_state.running) break;
 		
-		if (!g_state.running)
-            break;
+		// NOTE(Ecy): process inputs. For the time being only the first one of each type. 
+		// Not sure if the dual input buffer will be useful ..
+		{
+			g_state.keyboards[0] = newKeyInput;
+			g_state.pointers[0]  = newPointerInput;
+			
+			app_keyboard_input *tempKeyInput = newKeyInput;
+			newKeyInput = oldKeyInput;
+			oldKeyInput = tempKeyInput;
+			
+			app_pointer_input *tempPointerInput = newPointerInput;
+			newPointerInput = oldPointerInput;
+			oldPointerInput = tempPointerInput;
+		}
 		
 		UpdateAndRenderApp(&g_state);
 		

@@ -41,8 +41,10 @@ UIFrameBegin(char *title, u32 titleSize, v2 pos, v2 size, color background)
 	
 	// NOTE(Ecy): those are RELATIVE positions
 	titleNode->type   = UI_NODE_TEXT;
-	titleNode->left   = 1;
-	titleNode->top    = 1;
+	// NOTE(Ecy): leaves 5 pixels from the edges
+	// TODO(Ecy): calculate the size instead
+	titleNode->left   = 5;
+	titleNode->top    = 5;
 	
 	// TODO(Ecy): use a linear allocator instead of hardcoded array
 	memcpy(titleNode->title, title, titleSize);
@@ -94,11 +96,11 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 
 internal void
 DebugRenderText(render_group *group, char *buffer, u32 bufferSize, 
-				u32 x, u32 y, r32 scale)
+				u32 x, u32 y, r32 scale, color fontColor)
 {
 	r32 currentXCursor = 0.0f;
 	
-	v4 color = RGBToFloat(GOLD);
+	v4 color = RGBToFloat(fontColor);
 	
 	r32 downOffset = (r32)g_fontEngine.asset.height * scale;
 	for(u32 index = 0;
@@ -163,14 +165,34 @@ InitApp(app_state *appContext)
 internal void
 UpdateAndRenderApp(app_state *appContext)
 {
+	app_keyboard_input *keyboardInput = appContext->keyboards[0];
+	app_pointer_input  *pointerInput  = appContext->pointers[0];
+	
 	{
 		// NOTE(Ecy): that is not good ... should not be reseted at this stage
 		debugRenderGroup.vertexCount = 0;
 		debugRenderGroup.indexCount = 0;
 		
-		char buffer[32];
+		char buffer[256];
+		// TODO(Ecy): remove this horrible thing here, and also stdio
 		u32 bytesWritten = sprintf(buffer, "Frametime: %.2fms\n", appContext->frameTime * 1000.0f);
-		DebugRenderText(&debugRenderGroup, buffer, bytesWritten, 10, 10, 0.3f);
+		DebugRenderText(&debugRenderGroup, buffer, bytesWritten, 
+						appContext->width - 300.0f, appContext->height - 100.0f, 0.3f, GOLD);
+		
+		// NOTE(Ecy): disply current key
+		char *cursor = buffer;
+		for(u32 index = 0;
+			index < KEY_COUNT;
+			++index)
+		{
+			if(keyboardInput->keys[index].endedDown)
+			{
+				cursor += (u8)sprintf(cursor, "%s", keyLabels[index]);
+			}
+		} 
+		DebugRenderText(&debugRenderGroup, buffer, cursor - buffer, 
+						appContext->width - 300.0f, appContext->height - 200.0f, 0.3f, WHITE);
+		
 	}
 
 	{
@@ -180,9 +202,18 @@ UpdateAndRenderApp(app_state *appContext)
 		
 		{
 			// NOTE(Ecy): test im mode gui
-			if(UIFrameBegin("root", 4, { 100.0f, 100.0f }, { 200.0f, 200.0f }, RED))
+			if(UIFrameBegin("parent", 6, { 100.0f, 100.0f }, { 200.0f, 200.0f }, RED))
 			{
-				if(UIFrameBegin("kid", 3, { 50.0f, 5.0f }, { 100.0f, 50.0f }, BLUE))
+				if(UIFrameBegin("child", 5, { 50.0f, 5.0f }, { 100.0f, 100.0f }, BLUE))
+				{
+					UIEnd();
+				}
+				UIEnd();
+			}
+			
+			if(UIFrameBegin("parent1", 7, { 500.0f, 500.0f }, { 200.0f, 500.0f }, LIME))
+			{
+				if(UIFrameBegin("child1", 6, { 50.0f, 5.0f }, { 100.0f, 500.0f }, BLUE))
 				{
 					UIEnd();
 				}
@@ -216,7 +247,8 @@ UpdateAndRenderApp(app_state *appContext)
 				
 				case UI_NODE_TEXT: 
 				{
-					DebugRenderText(&debugRenderGroup, node->title, node->titleSize, node->left, node->top, 0.2f);
+					DebugRenderText(&debugRenderGroup, node->title, node->titleSize, 
+									node->top, node->left, 0.25f, WHITE);
 				}break;
 				
 				default:
