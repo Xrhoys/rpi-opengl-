@@ -60,6 +60,9 @@ struct ui_node
 	// NOTE(Ecy): relative to parent position
 	r32 top;
 	r32 left;
+	
+	char title[50];
+	u32 titleSize;
 };
 
 struct app_ui

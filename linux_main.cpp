@@ -256,6 +256,21 @@ int main(int argc, char *argv[]) {
 		g_state.DEBUGPlatformReadEntireFile  = LinuxReadEntireFile;
 		g_state.DEBUGPlatformWriteEntireFile = LinuxWriteEntireFile;
 		g_state.DEBUGPlatformFreeFileMemory  = LinuxFreeFile;
+
+		g_state.permanentStorageSize = Megabytes(256);
+		g_state.permanentStorage = malloc(g_state.permanentStorageSize);
+		if(!g_state.permanentStorage)
+		{
+			// TODO(Ecy): log errors
+			return -1;
+		}
+		g_state.transientStorageSize = Gigabytes(1);
+		g_state.transientStorage     = malloc(g_state.transientStorageSize);
+		if(!g_state.transientStorage)
+		{
+			// TODO(Ecy): log errors
+			return -1;
+		}	
 	}
 	
 	InitApp(&g_state);
@@ -276,7 +291,6 @@ int main(int argc, char *argv[]) {
 		UpdateAndRenderApp(&g_state);
 		
 		eglSwapBuffers(eglDisplay, eglSurface);
-		
 		// Timer update
 		{
 			// NOTE(Ecy): placeholder

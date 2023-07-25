@@ -140,7 +140,7 @@ getErrorStr(EGLint code)
 }
 
 #define GetGlErrorString() _GetGlErrorString(__FILE__, __LINE__) 
-inline char**
+inline void
 _GetGlErrorString(const char *file, int line)
 {
 	GLenum errorCode = glGetError();
@@ -161,7 +161,6 @@ _GetGlErrorString(const char *file, int line)
             case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
         }
     }
-    return errors;
 }
 
 // TODO(Ecy): either generate float versions of color macros

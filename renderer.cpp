@@ -14,14 +14,15 @@ internal v4 clearBackground = RGBToFloat(LIGHTGRAY);
 // TODO(Ecy): to remove this global
 internal GLuint g_bgTexture, g_emptyTexture;
 
-float vertices[] = 
+vertex vertices[] = 
 {
-	-1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, // bottom left
-	1.0f, -1.0f, 0.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, // bottom right
-	1.0f,  1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, // top right
-	-1.0f,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, // top left 
+	Vertex(-1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f),
+	Vertex(1.0f, -1.0f, 0.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f),
+	Vertex(1.0f,  1.0f, 0.0f,  1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f),
+	Vertex(-1.0f,  1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f),
 };
-unsigned int indices[] = 
+
+u32 indices[] = 
 {
 	0, 1, 3,   // first triangle
 	1, 2, 3    // second triangle
@@ -109,9 +110,9 @@ InitRenderer()
 		glGenBuffers(BUFFER_COUNT, g_glBuffers);
 		
         glBindBuffer(GL_ARRAY_BUFFER, g_glBuffers[BG_VERTEX_ARRAY]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertex) * 4, vertices, GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_glBuffers[BG_INDEX_ARRAY]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * 6, indices, GL_STATIC_DRAW);
 		
 		// TODO(Ecy): remove hard coded values later
 		glBindBuffer(GL_ARRAY_BUFFER, g_glBuffers[FONT_VERTEX_ARRAY]);
@@ -139,7 +140,7 @@ InitRenderer()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		char generateTexture[30000];
+		u8 generateTexture[30000];
 		for(u32 index = 0;
 			index < sizeof(generateTexture);
 			++index)
@@ -181,26 +182,28 @@ Render()
 		glClearColor(clearBackground.r, clearBackground.g, clearBackground.b, clearBackground.a);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
-		// NOTE(Ecy): there is a specific API call order here:
-		// 1. Bind data buffers and/or update buffer data
-		// 2. Bind vertex array strcut
-		// 3. Enable attributes
-		// 4. Draw
+		
 		glUseProgram(shaderProgram);
 
-#if 0
 		{
+			glBindVertexArray(VAO);
+			
 			glBindBuffer(GL_ARRAY_BUFFER, g_glBuffers[BG_VERTEX_ARRAY]);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_glBuffers[BG_INDEX_ARRAY]);
 			
 			UseVertexAttrib();
 			
 			glBindTexture(GL_TEXTURE_2D, g_bgTexture);
+			
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		}
-#endif
 
 		// NOTE(Ecy): render tree-node UI structure
+		// NOTE(Ecy): there is a specific API call order here:
+		// 1. Bind data buffers and/or update buffer data
+		// 2. Bind vertex array strcut
+		// 3. Enable attributes
+		// 4. Draw
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, g_glBuffers[UI_VERTEX_ARRAY]);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_glBuffers[UI_INDEX_ARRAY]);
@@ -211,8 +214,8 @@ Render()
 			UseVertexAttrib();
 			
 			glBindTexture(GL_TEXTURE_2D, g_emptyTexture);
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+			//glEnable(GL_BLEND);
+			//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 			
 			glDrawElements(GL_TRIANGLES, uiRenderGroup.indexCount, GL_UNSIGNED_INT, 0);
 		}

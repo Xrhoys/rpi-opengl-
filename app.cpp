@@ -17,7 +17,7 @@ global memory_arena g_mainArena;
 
 // UI Frame element
 internal b32
-UIFrameBegin(char *title, v2 pos, v2 size, color background)
+UIFrameBegin(char *title, u32 titleSize, v2 pos, v2 size, color background)
 {
 	ui_node *node = NewNode(&mainUi);
 	
@@ -30,11 +30,25 @@ UIFrameBegin(char *title, v2 pos, v2 size, color background)
 	
 	mainUi.currentContextNode = node;
 	
+	node->type   = UI_NODE_FRAME;
 	node->left   = pos.x;
 	node->top    = pos.y;
 	node->width  = size.x;
 	node->height = size.y;
 	node->background = background;
+	
+	ui_node *titleNode = NewNode(&mainUi);
+	
+	// NOTE(Ecy): those are RELATIVE positions
+	titleNode->type   = UI_NODE_TEXT;
+	titleNode->left   = 1;
+	titleNode->top    = 1;
+	
+	// TODO(Ecy): use a linear allocator instead of hardcoded array
+	memcpy(titleNode->title, title, titleSize);
+	titleNode->titleSize = titleSize;
+	
+	titleNode->parent = node;
 	
 	return true;
 }
@@ -75,12 +89,11 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	
 	engine->textureId = texture;
 	
-	state->DEBUGPlatformFreeFileMemory(NULL, &fontFile.contents);
+	state->DEBUGPlatformFreeFileMemory(NULL, fontFile.contents);
 }
 
 internal void
-DebugRenderText(render_group *group, app_state *appState, 
-				char *buffer, u32 bufferSize, 
+DebugRenderText(render_group *group, char *buffer, u32 bufferSize, 
 				u32 x, u32 y, r32 scale)
 {
 	r32 currentXCursor = 0.0f;
@@ -157,7 +170,7 @@ UpdateAndRenderApp(app_state *appContext)
 		
 		char buffer[32];
 		u32 bytesWritten = sprintf(buffer, "Frametime: %.2fms\n", appContext->frameTime * 1000.0f);
-		DebugRenderText(&debugRenderGroup, appContext, buffer, bytesWritten, 10, 10, 0.3f);
+		DebugRenderText(&debugRenderGroup, buffer, bytesWritten, 10, 10, 0.3f);
 	}
 
 	{
@@ -167,16 +180,16 @@ UpdateAndRenderApp(app_state *appContext)
 		
 		{
 			// NOTE(Ecy): test im mode gui
-			if(UIFrameBegin("root", { 100.0f, 100.0f }, { 200.0f, 200.0f }, RED))
+			if(UIFrameBegin("root", 4, { 100.0f, 100.0f }, { 200.0f, 200.0f }, RED))
 			{
-				if(UIFrameBegin("kid", { 50.0f, 5.0f }, { 100.0f, 50.0f }, BLUE))
+				if(UIFrameBegin("kid", 3, { 50.0f, 5.0f }, { 100.0f, 50.0f }, BLUE))
 				{
 					UIEnd();
 				}
 				UIEnd();
 			}
 		}
-		
+
 		Assert(!mainUi.currentContextNode)
 		for(u32 index = 0;
 			index < mainUi.nodeCount;
@@ -193,9 +206,28 @@ UpdateAndRenderApp(app_state *appContext)
 			
 			v4 color = RGBToFloat(node->background);
 			
-			PushAxisAlignedRect(&uiRenderGroup, node->top, node->left, node->width, node->height, 
-								(r32*)&color);
+			switch(node->type)
+			{
+				case UI_NODE_FRAME: 
+				{
+					PushAxisAlignedRect(&uiRenderGroup, node->top, node->left, node->width, node->height, 
+										(r32*)&color);
+				}break;
+				
+				case UI_NODE_TEXT: 
+				{
+					DebugRenderText(&debugRenderGroup, node->title, node->titleSize, node->left, node->top, 0.2f);
+				}break;
+				
+				default:
+				{
+					// NOTE(Ecy): impossible code path
+					Assert(false);
+				}break;
+			}
+			
 		}
+		
 	}
 
 	if(decoder.isLoaded)
