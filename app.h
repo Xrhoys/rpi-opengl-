@@ -53,13 +53,15 @@ struct ui_node
 	u32     childCount;
 	
 	// UI Node properties
-	r32 width;
-	r32 height;
-	color background;
+	u32 width;
+	u32 height;
+	color *background;
 	
 	// NOTE(Ecy): relative to parent position
-	r32 top;
-	r32 left;
+	u32 top;
+	u32 left;
+	
+	u32 clickedAtX, clickedAtY;
 	
 	char title[50];
 	u32 titleSize;
@@ -107,5 +109,30 @@ struct font_engine
 	
 	u32 textureId;
 };
+
+// NOTE(Ecy): problems with overlapped windwow, it has to come from state that lives cross frames
+// and not within the life cycle of a single frame
+inline b32
+IsUiHovered(app_pointer_input *pointer, app_ui *ui)
+{
+	ui_node *node = ui->currentContextNode;
+	
+	return (pointer->posX <= node->left + node->width) 
+		&& (pointer->posX >= node->left)
+		&& (pointer->posY <= node->top + node->height)
+		&& (pointer->posY >= node->top);
+}
+
+inline b32
+IsUiClicked(app_pointer_input *pointer, app_ui *ui)
+{
+	ui_node *node = ui->currentContextNode;
+	
+	return (pointer->posX <= node->left + node->width) 
+		&& (pointer->posX >= node->left)
+		&& (pointer->posY <= node->top + node->height)
+		&& (pointer->posY >= node->top)
+		&& pointer->buttons[MOUSE_LEFT].endedDown;
+}
 
 #endif //APP_H

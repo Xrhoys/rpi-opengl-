@@ -10,6 +10,16 @@ global video_decode decoder;
 global app_ui mainUi;
 GLuint texture;
 global memory_arena g_mainArena;
+global color DEFAULT_TEXT_COLOR = WHITE;
+
+// NOTE(Ecy): UI test globals
+global v2U32 mainFramePos  = { 100, 100 };
+global v2U32 mainFrameSize = { 200, 200 };
+
+global v2U32 subFramePos  = { 5, 50 };
+global v2U32 subFrameSize = { 100, 100 };
+
+global v2U32 lastClickedPos = { 100, 100 };
 
 /*
 // The following describe an Immediate mode GUI API 
@@ -17,7 +27,7 @@ global memory_arena g_mainArena;
 
 // UI Frame element
 internal b32
-UIFrameBegin(char *title, u32 titleSize, v2 pos, v2 size, color background)
+UIFrameBegin(char *title, u32 titleSize, v2U32 *pos, v2U32 *size, color *background)
 {
 	ui_node *node = NewNode(&mainUi);
 	
@@ -26,15 +36,20 @@ UIFrameBegin(char *title, u32 titleSize, v2 pos, v2 size, color background)
 	{
 		node->parent = mainUi.currentContextNode;
 		//AddNode(node->parent, node);
+		node->left = node->parent->left + pos->x;
+		node->top = node->parent->top + pos->y;
+	}
+	else
+	{
+		node->left = pos->x;
+		node->top  = pos->y;
 	}
 	
 	mainUi.currentContextNode = node;
 	
 	node->type   = UI_NODE_FRAME;
-	node->left   = pos.x;
-	node->top    = pos.y;
-	node->width  = size.x;
-	node->height = size.y;
+	node->width  = size->width;
+	node->height = size->height;
 	node->background = background;
 	
 	ui_node *titleNode = NewNode(&mainUi);
@@ -43,8 +58,9 @@ UIFrameBegin(char *title, u32 titleSize, v2 pos, v2 size, color background)
 	titleNode->type   = UI_NODE_TEXT;
 	// NOTE(Ecy): leaves 5 pixels from the edges
 	// TODO(Ecy): calculate the size instead
-	titleNode->left   = 5;
-	titleNode->top    = 5;
+	titleNode->left   = node->left + 5;
+	titleNode->top    = node->top + 5;
+	titleNode->background = &DEFAULT_TEXT_COLOR;
 	
 	// TODO(Ecy): use a linear allocator instead of hardcoded array
 	memcpy(titleNode->title, title, titleSize);
@@ -137,6 +153,9 @@ DebugRenderText(render_group *group, char *buffer, u32 bufferSize,
 internal void
 InitApp(app_state *appContext)
 {
+	app_keyboard_input *keyboardInput = appContext->keyboards[0];
+	app_pointer_input  *pointerInput  = appContext->pointers[0];
+	
 	InitRenderer();
 	InitFont(appContext, &g_fontEngine, "data/asset_data");
 	
@@ -159,6 +178,9 @@ InitApp(app_state *appContext)
 		uiRenderGroup    = CreateRenderGroup(appContext, &g_mainArena, Megabytes(1), Megabytes(1));
 	}
 	
+	pointerInput->sensX = 1.0f;
+	pointerInput->sensY = 1.0f;
+	pointerInput->sensZ = 1.0f;
 	
 }
 
@@ -193,6 +215,10 @@ UpdateAndRenderApp(app_state *appContext)
 		DebugRenderText(&debugRenderGroup, buffer, cursor - buffer, 
 						appContext->width - 300.0f, appContext->height - 200.0f, 0.3f, WHITE);
 		
+		bytesWritten = sprintf(buffer, "Mouse: x%d - y:%d", 
+							   pointerInput->posX, pointerInput->posY);
+		DebugRenderText(&debugRenderGroup, buffer, bytesWritten, 
+						100.0f, appContext->height - 100.0f, 0.3f, GOLD);
 	}
 
 	{
@@ -200,21 +226,32 @@ UpdateAndRenderApp(app_state *appContext)
 		uiRenderGroup.indexCount = 0;
 		mainUi.nodeCount = 0;
 		
+		color mainFrameBackground = RED;
+		color background = BLUE;
 		{
 			// NOTE(Ecy): test im mode gui
-			if(UIFrameBegin("parent", 6, { 100.0f, 100.0f }, { 200.0f, 200.0f }, RED))
+			if(UIFrameBegin("parent", 6, &mainFramePos, &mainFrameSize, &mainFrameBackground))
 			{
-				if(UIFrameBegin("child", 5, { 50.0f, 5.0f }, { 100.0f, 100.0f }, BLUE))
+				if(IsUiClicked(pointerInput, &mainUi))
 				{
-					UIEnd();
-				}
-				UIEnd();
-			}
-			
-			if(UIFrameBegin("parent1", 7, { 500.0f, 500.0f }, { 200.0f, 500.0f }, LIME))
-			{
-				if(UIFrameBegin("child1", 6, { 50.0f, 5.0f }, { 100.0f, 500.0f }, BLUE))
+					mainFrameBackground = GRAY;
+				} 
+				
+				if(UIFrameBegin("child", 5, &subFramePos, &subFrameSize, &background))
 				{
+					if(IsUiHovered(pointerInput, &mainUi))
+					{
+						background = LIME;
+					}
+					
+					if(IsUiClicked(pointerInput, &mainUi))
+					{
+						background = GOLD;
+						
+						// NOTE(Ecy): experimental drag and drop
+						
+					}
+					
 					UIEnd();
 				}
 				UIEnd();
@@ -228,27 +265,21 @@ UpdateAndRenderApp(app_state *appContext)
 		{
 			// TODO(Ecy): order node list for Z depth testing, then use mainUi.nodes instead
 			ui_node *node = &mainUi._nodes[index];
-			
-			if(node->parent)
-			{
-				node->top += node->parent->top;
-				node->left += node->parent->left;
-			}
-			
-			v4 color = RGBToFloat(node->background);
+
+			v4 color = RGBToFloat(*node->background);
 			
 			switch(node->type)
 			{
 				case UI_NODE_FRAME: 
 				{
-					PushAxisAlignedRect(&uiRenderGroup, node->top, node->left, node->width, node->height, 
+					PushAxisAlignedRect(&uiRenderGroup, (r32)node->left, (r32)node->top, (r32)node->width, (r32)node->height, 
 										(r32*)&color);
 				}break;
 				
 				case UI_NODE_TEXT: 
 				{
 					DebugRenderText(&debugRenderGroup, node->title, node->titleSize, 
-									node->top, node->left, 0.25f, WHITE);
+									node->left, node->top, 0.25f, WHITE);
 				}break;
 				
 				default:

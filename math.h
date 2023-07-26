@@ -52,6 +52,26 @@ union v2
 	r32 operator[](u32 index);
 };
 
+union v2U32
+{
+	struct
+	{
+		u32 x, y;
+	};
+	
+	struct
+	{
+		u32 width, height;
+	};
+	
+	struct
+	{
+		u32 left, top;
+	};
+	
+	u32 _E[2];
+};
+
 inline r32
 v4::operator[](u32 index)
 {
@@ -69,6 +89,5 @@ v2::operator[](u32 index)
 {
 	return _E[index];
 }
-
 
 #endif //MATH_H

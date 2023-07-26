@@ -24,6 +24,7 @@ extern "C" {
 	
 	typedef int32_t  b32;
 	
+	
 	// TODO(Ecy): finish the input layer with all keys on a 100% keyboard, fuck 108
 	enum KEY_LABELS
 	{
@@ -81,6 +82,7 @@ extern "C" {
 		MOUSE_BUTTON_COUNT,
 	};
 	
+	
 	typedef struct thread_context
 	{
 		int placeHolder;
@@ -123,6 +125,8 @@ extern "C" {
 		b32 isConnected;
 		
 		r32 mouseX, mouseY, mouseZ, sensX, sensY, sensZ;
+		
+		u32 posX, posY;
 		
 		b32 isTouchScreen;
 		b32 concurrentTouchCount;

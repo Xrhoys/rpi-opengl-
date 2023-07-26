@@ -152,8 +152,8 @@ Win32ProcessInputEvent(app_keyboard_input *keyInput, app_pointer_input *pointerI
 			RAWMOUSE mouseData = raw->data.mouse;
 			
 			pointerInput->mouseX += pointerInput->sensX * mouseData.lLastX;
-			pointerInput->mouseY += pointerInput->sensY * mouseData.lLastY;
-			
+			pointerInput->mouseY += pointerInput->sensY * mouseData.lLastY;	
+
 			u16 leftDown   = mouseData.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN;
 			u16 rightDown  = mouseData.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN;
 			u16 middleDown = mouseData.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN;
@@ -488,6 +488,19 @@ WinMain(HINSTANCE Instance,
 					newPointerInput->buttons[index].startHoldTime = oldPointerInput->buttons[index].startHoldTime;
 				}
 			}
+
+			newPointerInput->mouseX = oldPointerInput->mouseX;
+			newPointerInput->mouseY = oldPointerInput->mouseY;
+			newPointerInput->mouseZ = oldPointerInput->mouseZ;
+			newPointerInput->sensX  = oldPointerInput->sensX;
+			newPointerInput->sensY  = oldPointerInput->sensY;
+			newPointerInput->sensZ  = oldPointerInput->sensZ;
+			
+			POINT lpPoint;
+			GetCursorPos(&lpPoint);
+			ScreenToClient(hwnd, &lpPoint);
+			newPointerInput->posX = lpPoint.x;
+			newPointerInput->posY = lpPoint.y;
 		}
 		
 		MSG msg;
