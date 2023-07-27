@@ -1,12 +1,21 @@
 # RPI Experimentatal media player + UI engine
 
-For linux version:
+## Configure
+
+Create a data folder and place in the font (arial.ttf) and the mp4 file (sample.mp4).
+
+## Compiling
+
+### Linux
+Run this script to configure the asset data & compile the program.
 
 ```
-make clean && make
+./build_linux.sh
 ```
 
-For windows version:
+Alternatively, you can run `build.sh` to compile the main program or `build_asset.sh` to build the asset bundle.
+
+### Windows
 
 ```
 build.bat

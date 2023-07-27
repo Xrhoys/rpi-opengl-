@@ -1,5 +1,6 @@
 # Exclude linux executable
 debug/*main*
+debug/*asset*
 
 # Exclude cl debug files
 debug/win32*
@@ -10,4 +11,9 @@ debug/.vs/
 # Exclude sample data folder
 data
 *.mp4
+*mkv
+*raw
 
+# Exclude editor folders
+.idea/
+.vscode/
