@@ -3,6 +3,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
 
 // LINUX POSIX API
 #include <fcntl.h>
@@ -22,6 +23,8 @@ global Window                 window;
 global Display                *xdisplay;
 global XSetWindowAttributes   swa;
 global u32                    root_w, root_h, root_border_width, root_depth;
+
+char buffertest[256];
 
 inline u32 
 GetTicks()
@@ -110,24 +113,210 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(LinuxReadEntireFile)
 	return file;
 }
 
+internal void
+ProcessKeyboardMessage(app_input_state *state, b32 isDown)
+{
+    if(state->endedDown != isDown)
+    {
+        state->endedDown = isDown;
+        ++state->halfTransitionCount;
+		
+		if(isDown)
+		{
+			state->startHoldTime = LinuxGetLastElapsed();
+			// state->startHoldTime = Win32GetSecondsElapsed(g_bootCounter, g_lastCounter);
+		}
+		else
+		{
+			state->startHoldTime = INFINITY;
+		}
+    }
+}
+
 internal void 
-ProcessEvent(app_state *appContext, XEvent *xev) {
+ProcessEvent(app_state *appContext, XEvent *xev, Atom *wmDeleteMessage, app_keyboard_input *keyInput, app_pointer_input *pointerInput) {
+	Atom wmDeleteMessage1 = XInternAtom(xdisplay, "WM_DELETE_WINDOW", False);
+	XSetWMProtocols(xdisplay, window, &wmDeleteMessage1, 1);
+	KeySym keysym;
+	char keytext[255];
+	bool isDown = true;
+
+	XKeyEvent *keyEvent = (XKeyEvent*)xev;
+	// NOTE(Nico): this is weird but necessary for key lookup...
+	XLookupString(keyEvent,keytext,255, &keysym,0);
+
 	// NOTE(Ecy): do not call printf here, it will cause segfault or being ignored
 	switch (xev->type) {
 		case KeyPress:
 		{
-			XKeyEvent *keyEvent = (XKeyEvent*)xev;
-			
-			// NOTE(Ecy): escape key
-			if(keyEvent->keycode == 0x09) {
+			isDown = true;
+			if(keysym == XK_Escape) {
 				appContext->running = false;
+			}
+			else if (keysym == XK_w)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_W], isDown);
+			}
+			else if (keysym == XK_a)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_A], isDown);
+			}
+			else if (keysym == XK_s)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_S], isDown);
+			}
+			else if (keysym == XK_d)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_D], isDown);
+			}
+			else if (keysym == XK_Alt_L || keysym == XK_Alt_R)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_ALT], isDown);
+			}
+			else if (keysym == XK_Control_L || keysym == XK_Control_R)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_CTRL], isDown);
+			}
+			else if (keysym == XK_space)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_SPACE], isDown);
+			}
+			else if (keysym == XK_F1)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F1], isDown);
+			}
+			else if (keysym == XK_F2)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F2], isDown);
+			}
+			else if (keysym == XK_F3)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F3], isDown);
+			}
+			else if (keysym == XK_F4)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F4], isDown);
+			}
+			else if (keysym == XK_F5)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F5], isDown);
+			}
+			else if (keysym == XK_F6)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F6], isDown);
+			}
+			else if (keysym == XK_Shift_L || keysym == XK_Shift_R)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_SHIFT], isDown);
 			}
 		} break;
 		
 		case KeyRelease:
+		{
+			isDown = false;
+			if (keysym == XK_w)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_W], isDown);
+			}
+			else if (keysym == XK_a)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_A], isDown);
+			}
+			else if (keysym == XK_s)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_S], isDown);
+			}
+			else if (keysym == XK_d)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_D], isDown);
+			}
+			else if (keysym == XK_Alt_L || keysym == XK_Alt_R)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_ALT], isDown);
+			}
+			else if (keysym == XK_Control_L || keysym == XK_Control_R)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_CTRL], isDown);
+			}
+			else if (keysym == XK_space)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_SPACE], isDown);
+			}
+			else if (keysym == XK_F1)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F1], isDown);
+			}
+			else if (keysym == XK_F2)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F2], isDown);
+			}
+			else if (keysym == XK_F3)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F3], isDown);
+			}
+			else if (keysym == XK_F4)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F4], isDown);
+			}
+			else if (keysym == XK_F5)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F5], isDown);
+			}
+			else if (keysym == XK_F6)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_F6], isDown);
+			}
+			else if (keysym == XK_Shift_L || keysym == XK_Shift_R)
+			{
+				ProcessKeyboardMessage(&keyInput->keys[KEY_SHIFT], isDown);
+			}
+			break;
+		}
 		case MotionNotify:
+		break;
 		case ButtonPress:
+		{
+			isDown = true;
+			pointerInput->mouseX += pointerInput->sensX * xev->xbutton.x;
+			pointerInput->mouseY += pointerInput->sensY * xev->xbutton.y;	
+			if (xev->xbutton.button == 1)
+			{
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], isDown);
+			}
+			else if (xev->xbutton.button == 2)
+			{
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_MIDDLE], isDown);
+			}
+			else if (xev->xbutton.button == 3)
+			{
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_RIGHT], isDown);
+			}
+
+			// Scroll - button4
+			
+			break;
+		}
 		case ButtonRelease:
+		{
+			isDown = false;
+			if (xev->xbutton.button == 1) {
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], isDown);
+			}
+			else if (xev->xbutton.button == 2) {
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_MIDDLE], isDown);
+			}
+			else if (xev->xbutton.button == 3) {
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_RIGHT], isDown);
+			}
+
+			// Scroll - button4
+
+			break;
+		}
+		case ClientMessage:
+            if (xev->xclient.data.l[0] == wmDeleteMessage1)
+                appContext->running = false;
+            break;
 		default:
 		{
 		} break;
@@ -240,6 +429,14 @@ int main(int argc, char *argv[]) {
 		
 		eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	}
+
+	app_keyboard_input keyInputs[2] = {};
+	app_keyboard_input *oldKeyInput = &keyInputs[0];
+	app_keyboard_input *newKeyInput = &keyInputs[1];
+	
+	app_pointer_input pointerInputs[2] = {};
+	app_pointer_input *oldPointerInput = &pointerInputs[0];
+	app_pointer_input *newPointerInput = &pointerInputs[1];
 	
 	app_state g_state;
 	{
@@ -250,8 +447,10 @@ int main(int argc, char *argv[]) {
 		g_state.getTime = LinuxGetLastElapsed;
 		
 		// NOTE(Ecy): needs to set at runtime + dynamic with resize event
-		g_state.width = WINDOW_WIDTH;
-		g_state.height = WINDOW_HEIGHT;
+		XWindowAttributes winAttr;
+		XGetWindowAttributes(xdisplay, window, &winAttr);
+		g_state.width = winAttr.width;
+		g_state.height = winAttr.height;
 		
 		g_state.DEBUGPlatformReadEntireFile  = LinuxReadEntireFile;
 		g_state.DEBUGPlatformWriteEntireFile = LinuxWriteEntireFile;
@@ -270,23 +469,105 @@ int main(int argc, char *argv[]) {
 		{
 			// TODO(Ecy): log errors
 			return -1;
-		}	
+		}
+
+		g_state.keyboards[0] = oldKeyInput;
+		g_state.pointers[0]  = oldPointerInput;
+		
+		g_state.keyboards[0]->isConnected = true;
+		g_state.pointers[0]->isConnected = true;
+		
+		for(u32 index = 0;
+			index < KEY_COUNT;
+			index++)
+		{
+			g_state.keyboards[0]->keys[index].startHoldTime = INFINITY;
+		}
+		
+		for(u32 index = 0;
+			index < MOUSE_BUTTON_COUNT;
+			index++)
+		{
+			g_state.pointers[0]->buttons[index].startHoldTime = INFINITY;
+		}
 	}
 	
 	InitApp(&g_state);
 	
 	while(g_state.running)
 	{
+		// NOTE(Nico): Reset input
+		{
+			*newKeyInput     = {};
+			*newPointerInput = {};
+			
+			for(u32 index = 0;
+				index < KEY_COUNT;
+				++index)
+			{
+				newKeyInput->keys[index].endedDown = oldKeyInput->keys[index].endedDown;
+				newKeyInput->keys[index].halfTransitionCount = oldKeyInput->keys[index].halfTransitionCount;
+				
+				if(newKeyInput->keys[index].endedDown)
+				{
+					newKeyInput->keys[index].startHoldTime = oldKeyInput->keys[index].startHoldTime;
+				}
+			}
+			
+			for(u32 index = 0;
+				index < MOUSE_BUTTON_COUNT;
+				++index)
+			{
+				newPointerInput->buttons[index].endedDown = oldPointerInput->buttons[index].endedDown;
+				newPointerInput->buttons[index].halfTransitionCount = oldPointerInput->buttons[index].halfTransitionCount;
+				if(newPointerInput->buttons[index].endedDown)
+				{
+					newPointerInput->buttons[index].startHoldTime = oldPointerInput->buttons[index].startHoldTime;
+				}
+			}
+
+			newPointerInput->mouseX = oldPointerInput->mouseX;
+			newPointerInput->mouseY = oldPointerInput->mouseY;
+			newPointerInput->mouseZ = oldPointerInput->mouseZ;
+			newPointerInput->sensX  = oldPointerInput->sensX;
+			newPointerInput->sensY  = oldPointerInput->sensY;
+			newPointerInput->sensZ  = oldPointerInput->sensZ;
+			
+			// TODO: (Nico) switch to linux
+			i32 root_x, root_y, win_x, win_y;
+			u32 mask;
+			Window dummy;
+			int mouseRet = XQueryPointer(xdisplay, window, &dummy, &dummy, &root_x, &root_y, &win_x, &win_y, &mask);
+			newPointerInput->posX = win_x;
+			newPointerInput->posY = win_y;
+		}
+
 		while(XPending(xdisplay))
 		{
 			XEvent xev;
 			
 			XNextEvent(xdisplay, &xev);
-			ProcessEvent(&g_state, &xev);
+			ProcessEvent(&g_state, &xev, &atomWmDeleteWindow, newKeyInput, newPointerInput);
 		}
 			
 		if (!g_state.running) 
 			break;
+
+		// NOTE(Ecy): process inputs. For the time being only the first one of each type. 
+		// Not sure if the dual input buffer will be useful ..
+		{
+			g_state.keyboards[0] = newKeyInput;
+			g_state.pointers[0]  = newPointerInput;
+			
+			app_keyboard_input *tempKeyInput = newKeyInput;
+			newKeyInput = oldKeyInput;
+			oldKeyInput = tempKeyInput;
+			
+			app_pointer_input *tempPointerInput = newPointerInput;
+			newPointerInput = oldPointerInput;
+			oldPointerInput = tempPointerInput;
+		}
+
 		
 		UpdateAndRenderApp(&g_state);
 		

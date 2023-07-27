@@ -1,3 +1,4 @@
+#!/bin/bash
 EXECUTABLE=linux-asset
 TARGET=linux-asset
 BIN=debug
