@@ -134,9 +134,9 @@ ProcessKeyboardMessage(app_input_state *state, b32 isDown)
 }
 
 internal void 
-ProcessEvent(app_state *appContext, XEvent *xev, app_keyboard_input *keyInput, app_pointer_input *pointerInput) {
-	Atom wmDeleteMessage = XInternAtom(xdisplay, "WM_DELETE_WINDOW", False);
-	XSetWMProtocols(xdisplay, window, &wmDeleteMessage, 1);
+ProcessEvent(app_state *appContext, XEvent *xev, Atom *wmDeleteMessage, app_keyboard_input *keyInput, app_pointer_input *pointerInput) {
+	Atom wmDeleteMessage1 = XInternAtom(xdisplay, "WM_DELETE_WINDOW", False);
+	XSetWMProtocols(xdisplay, window, &wmDeleteMessage1, 1);
 	KeySym keysym;
 	char keytext[255];
 	bool isDown = true;
@@ -273,78 +273,53 @@ ProcessEvent(app_state *appContext, XEvent *xev, app_keyboard_input *keyInput, a
 			break;
 		}
 		case MotionNotify:
+		break;
 		case ButtonPress:
 		{
 			isDown = true;
 			pointerInput->mouseX += pointerInput->sensX * xev->xbutton.x;
-			pointerInput->mouseY += pointerInput->sensY * xev->xbutton.y;
-			if (keysym == XK_Pointer_Button1) {
-				ProcessKeyboardMessage(&keyInput->keys[KEY_W], isDown);
-				// ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], isDown);
+			pointerInput->mouseY += pointerInput->sensY * xev->xbutton.y;	
+			if (xev->xbutton.button == 1)
+			{
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], isDown);
 			}
-			else if (keysym == XK_Pointer_Button2) {
-
+			else if (xev->xbutton.button == 2)
+			{
 				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_MIDDLE], isDown);
 			}
-			else if (keysym == XK_Pointer_Button3) {
-
+			else if (xev->xbutton.button == 3)
+			{
 				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_RIGHT], isDown);
 			}
+
+			// Scroll - button4
 			
 			break;
 		}
 		case ButtonRelease:
 		{
 			isDown = false;
-			pointerInput->mouseX += pointerInput->sensX * xev->xbutton.x;
-			pointerInput->mouseY += pointerInput->sensY * xev->xbutton.y;
-			if (keysym == XK_Pointer_Button1) {
-				ProcessKeyboardMessage(&keyInput->keys[KEY_W], isDown);
-				// ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], isDown);
+			if (xev->xbutton.button == 1) {
+				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], isDown);
 			}
-			else if (keysym == XK_Pointer_Button2) {
-
+			else if (xev->xbutton.button == 2) {
 				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_MIDDLE], isDown);
 			}
-			else if (keysym == XK_Pointer_Button3) {
-
+			else if (xev->xbutton.button == 3) {
 				ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_RIGHT], isDown);
 			}
-			
+
+			// Scroll - button4
+
 			break;
 		}
 		case ClientMessage:
-            if (xev->xclient.data.l[0] == wmDeleteMessage)
+            if (xev->xclient.data.l[0] == wmDeleteMessage1)
                 appContext->running = false;
             break;
 		default:
 		{
 		} break;
-
-		// RAWMOUSE mouseData = raw->data.mouse;
-			// location-> xev->xbutton.x, xev->xbutton.y
-				
-			// pointerInput->mouseX += pointerInput->sensX * mouseData.lLastX;
-			// pointerInput->mouseY += pointerInput->sensY * mouseData.lLastY;	
-
-			// u16 leftDown   = mouseData.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN;
-			// u16 rightDown  = mouseData.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN;
-			// u16 middleDown = mouseData.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN;
-			
-			// NOTE(Ecy): mouse button flag mapping
-			// https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-rawmouse
-			// ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_LEFT], leftDown == RI_MOUSE_LEFT_BUTTON_DOWN);
-			// ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_RIGHT],  rightDown == RI_MOUSE_RIGHT_BUTTON_DOWN);
-			// ProcessKeyboardMessage(&pointerInput->buttons[MOUSE_MIDDLE],  middleDown == RI_MOUSE_MIDDLE_BUTTON_DOWN);
-			
-			// NOTE(Ecy): handle vertical wheel scrolling
-			// if((mouseData.usButtonFlags & RI_MOUSE_WHEEL) == RI_MOUSE_WHEEL)
-			// {
-			// 	r32 wheelDelta = (r32)((i16)mouseData.usButtonData);
-			// 	r32 numTicks   = wheelDelta / WHEEL_DELTA;
-				
-			// 	pointerInput->mouseZ += numTicks;
-			// }
 	}
 }
 
@@ -472,8 +447,10 @@ int main(int argc, char *argv[]) {
 		g_state.getTime = LinuxGetLastElapsed;
 		
 		// NOTE(Ecy): needs to set at runtime + dynamic with resize event
-		g_state.width = WINDOW_WIDTH;
-		g_state.height = WINDOW_HEIGHT;
+		XWindowAttributes winAttr;
+		XGetWindowAttributes(xdisplay, window, &winAttr);
+		g_state.width = winAttr.width;
+		g_state.height = winAttr.height;
 		
 		g_state.DEBUGPlatformReadEntireFile  = LinuxReadEntireFile;
 		g_state.DEBUGPlatformWriteEntireFile = LinuxWriteEntireFile;
@@ -557,11 +534,12 @@ int main(int argc, char *argv[]) {
 			newPointerInput->sensZ  = oldPointerInput->sensZ;
 			
 			// TODO: (Nico) switch to linux
-			// POINT lpPoint;
-			// GetCursorPos(&lpPoint);
-			// ScreenToClient(hwnd, &lpPoint);
-			// newPointerInput->posX = lpPoint.x;
-			// newPointerInput->posY = lpPoint.y;
+			i32 root_x, root_y, win_x, win_y;
+			u32 mask;
+			Window dummy;
+			int mouseRet = XQueryPointer(xdisplay, window, &dummy, &dummy, &root_x, &root_y, &win_x, &win_y, &mask);
+			newPointerInput->posX = win_x;
+			newPointerInput->posY = win_y;
 		}
 
 		while(XPending(xdisplay))
@@ -569,7 +547,7 @@ int main(int argc, char *argv[]) {
 			XEvent xev;
 			
 			XNextEvent(xdisplay, &xev);
-			ProcessEvent(&g_state, &xev, newKeyInput, newPointerInput);
+			ProcessEvent(&g_state, &xev, &atomWmDeleteWindow, newKeyInput, newPointerInput);
 		}
 			
 		if (!g_state.running) 
