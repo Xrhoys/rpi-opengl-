@@ -16,6 +16,120 @@
 
 #define MAX_UI_NODE_COUNT 1000
 
+enum Axis2
+{
+	Axis2_X,
+	Axis2_Y,
+	
+	Axis2_COUNT
+};
+
+enum ui_sizeKind
+{
+	UI_SizeKind_Null,
+	UI_SizeKind_Pixels,
+	UI_SizeKind_TextContent,
+	UI_SizeKind_PercentOfParent,
+	UI_SizeKind_ChildrenSum,
+};
+
+enum ui_boxFlags
+{
+	UI_WidgetFlag_Clickable       = (1<<0),
+	UI_WidgetFlag_ViewScroll      = (1<<1),
+	UI_WidgetFlag_DrawText        = (1<<2),
+	UI_WidgetFlag_DrawBorder      = (1<<3),
+	UI_WidgetFlag_DrawBackground  = (1<<4),
+	UI_WidgetFlag_DrawDropShadow  = (1<<5),
+	UI_WidgetFlag_Clip            = (1<<6),
+	UI_WidgetFlag_HotAnimation    = (1<<7),
+	UI_WidgetFlag_ActiveAnimation = (1<<8),
+};
+
+struct ui_key
+{
+	char *title;
+	char *hash;
+};
+
+struct ui_size
+{
+	ui_sizeKind kind;
+	r32         value;
+	r32         strictness;
+};
+
+/*
+TODO(Ecy): the goal would be to implement an API like this
+// basic key type helpers
+UI_Key UI_KeyNull(void);
+UI_Key UI_KeyFromString(String8 string);
+B32 UI_KeyMatch(UI_Key a, UI_Key b);
+
+// construct a widget, looking up from the cache if
+// possible, and pushing it as a new child of the
+// active parent.
+UI_Widget *UI_WidgetMake(UI_WidgetFlags flags, String8 string);
+UI_Widget *UI_WidgetMakeF(UI_WidgetFlags flags, char *fmt, ...);
+
+// some other possible building parameterizations
+void UI_WidgetEquipDisplayString(UI_Widget *widget,
+                                 String8 string);
+void UI_WidgetEquipChildLayoutAxis(UI_Widget *widget,
+                                   Axis2 axis);
+
+// managing the parent stack
+UI_Widget *UI_PushParent(UI_Widget *widget);
+UI_Widget *UI_PopParent(void);
+ */
+
+struct ui_box
+{
+	// tree links
+	ui_box *first;
+	ui_box *last;
+	ui_box *next;
+	ui_box *prev;
+	ui_box *parent;
+	
+	// hash links
+	ui_box *hash_next;
+	ui_box *hash_prev;
+	
+	// key+generation info
+	ui_key key;
+	u64 lastFrameTouchedIndex;
+	
+	// per-frame info provided by builders
+	ui_boxFlags flags;
+	char *string;
+	u32  stringSize;
+	ui_size semanticSize[Axis2_COUNT];
+	
+	// computed every frame
+	r32 computedRelPosition[Axis2_COUNT];
+	r32 computedSize[Axis2_COUNT];
+	//Rng2F32 rect;
+	
+	// persistent data
+	r32 hotT;
+	r32 activeT;
+};
+
+struct ui_comm
+{
+	ui_box *widget;
+	v2 mouse;
+	v2 drag_delta;
+	u8 clicked;
+	u8 doubleClicked;
+	u8 rightClicked;
+	u8 pressed;
+	u8 released;
+	u8 dragging;
+	u8 hovering;
+};
+
 enum ui_node_type 
 {
 	UI_NODE_NONE,
@@ -23,7 +137,7 @@ enum ui_node_type
 	UI_NODE_FRAME,
 	UI_NODE_BUTTON,
 	UI_NODE_TEXT,
-
+	
 	UI_NODE_TYPE_COUNT,
 };
 
