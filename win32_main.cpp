@@ -2,7 +2,6 @@
 
 #include <windows.h>
 #include <hidusage.h>
-#include <stdio.h>
 #include <tchar.h>
 
 #include "win32_main.h"
@@ -519,6 +518,7 @@ WinMain(HINSTANCE Instance,
 				default:
 				{
 					// NOTE(Ecy): non handled
+					int b = 0;
 				}break;
 			}
 			
