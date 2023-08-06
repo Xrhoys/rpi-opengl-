@@ -181,6 +181,7 @@ InitApp(app_state *appContext)
 	pointerInput->sensX = 1.0f;
 	pointerInput->sensY = 1.0f;
 	pointerInput->sensZ = 1.0f;
+	
 }
 
 internal void
@@ -196,7 +197,7 @@ UpdateAndRenderApp(app_state *appContext)
 		
 		char buffer[256];
 		// TODO(Ecy): remove this horrible thing here, and also stdio
-		u32 bytesWritten = sprintf(buffer, "Fps: %.2f\n", 1.0f / appContext->frameTime);
+		u32 bytesWritten = sprintf(buffer, "Frametime: %.2fms\n", appContext->frameTime * 1000.0f);
 		DebugRenderText(&debugRenderGroup, buffer, bytesWritten, 
 						appContext->width - 300.0f, appContext->height - 100.0f, 0.3f, GOLD);
 		
@@ -269,7 +270,7 @@ UpdateAndRenderApp(app_state *appContext)
 			
 			switch(node->type)
 			{
-				case UI_NODE_FRAME:
+				case UI_NODE_FRAME: 
 				{
 					PushAxisAlignedRect(&uiRenderGroup, (r32)node->left, (r32)node->top, (r32)node->width, (r32)node->height, 
 										(r32*)&color);
@@ -295,24 +296,10 @@ UpdateAndRenderApp(app_state *appContext)
 	if(decoder.isLoaded)
 	{
 		UpdateDecode(&decoder);
-#if 0
-		glBindTexture(GL_TEXTURE_2D, g_bgTexture[0]);
+		glBindTexture(GL_TEXTURE_2D, g_bgTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB,
-					 GL_UNSIGNED_BYTE, decoder.pFrameDest->data[0]);
+					 GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
 		glGenerateMipmap(GL_TEXTURE_2D);
-#endif
-		
-		u8 *data = (u8*)decoder.pFrameDest->data[0];
-		if(data)
-		{
-			u32 offset = decoder.pFrameDest->width * decoder.pFrameDest->height;
-			glActiveTexture(GL_TEXTURE0);
-			LoadYUVToTexture(g_bgTexture[0], decoder.pFrameDest->width, decoder.pFrameDest->height, 
-							 GL_LUMINANCE, &data[0]);
-			glActiveTexture(GL_TEXTURE1);
-			LoadYUVToTexture(g_bgTexture[1], decoder.pFrameDest->width / 2, decoder.pFrameDest->height / 2,
-							 GL_LUMINANCE_ALPHA, &data[offset]);
-		}
 	}
 	
 	Render();
