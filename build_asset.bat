@@ -1,12 +1,12 @@
 @echo off
 @set OUT_DIR=debug
 @set OUT_EXE=win32_asset
-@set INCLUDES=/I ..\include\  /I ..
+@set INCLUDES=
 @set SOURCES=../asset_build.cpp
 @set DEFINES=-DDEBUG=1 -DWIN32=1
 @set FLAGS=/nologo /Zi /MT -FC
 
-IF NOT EXIST Debug mkdir debug
+IF NOT EXIST debug mkdir debug
 pushd %OUT_DIR%
 
 REM Compile asset building code

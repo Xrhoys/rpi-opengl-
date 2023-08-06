@@ -1,5 +1,35 @@
 #include "video_decode.h"
 
+/* 
+NOTE(Ecy): Currently using Libav as decoding backend, but for special hardware like RPI
+should look into using directly INTEL DRM level at driver level
+https://github.com/raspberrypi/linux/blob/rpi-5.15.y/drivers/gpu/drm/vc4/vc4_plane.c#L1609
+https://www.linuxfromscratch.org/blfs/view/svn/x/libdrm.html
+To study for implementation
+https://github.com/FFmpeg/FFmpeg/blob/master/libavutil/hwcontext.c#L448
+https://github.com/FFmpeg/FFmpeg/blob/master/libavutil/hwcontext_drm.c
+
+For the RPI: an H.265 decoder is demanded
+*/
+
+// TODO(Ecy): this end up being a global due to GetHWPixelFormat being a function pointer 
+// but there's probably a way to fix the pixel format manually
+global AVPixelFormat pixFmt;
+
+internal AVPixelFormat 
+GetHWPixelFormat(AVCodecContext *ctx, const enum AVPixelFormat *pixelFormat)
+{
+	const enum AVPixelFormat *p;
+	
+    for (p = pixelFormat; *p != -1; p++) {
+        if (*p == pixFmt)
+            return *p;
+    }
+	
+    return AV_PIX_FMT_NONE;
+}
+
+
 // NOTE(Ecy): return type is temporary
 internal void
 LoadVideoContext(video_decode *decoder, char *filename)
@@ -42,6 +72,35 @@ LoadVideoContext(video_decode *decoder, char *filename)
 	
 	decoder->codecContext = avcodec_alloc_context3(decoder->codec);
 	
+	AVBufferRef *deviceContext;
+	i32 ret = av_hwdevice_ctx_create(&deviceContext, AV_HWDEVICE_TYPE_D3D11VA, NULL, NULL, 0);
+	if(ret < 0)
+	{
+		// Failed to get hw_device
+		// return;
+	}
+	
+	decoder->codecContext->hw_device_ctx = av_buffer_ref(deviceContext);
+	decoder->codecContext->get_format = GetHWPixelFormat;
+	
+	u32 configCounter = 0;
+	AVCodecHWConfig *config = (AVCodecHWConfig*)avcodec_get_hw_config(decoder->codec, configCounter);
+	while(config)
+	{
+		config = (AVCodecHWConfig*)avcodec_get_hw_config(decoder->codec, configCounter++);
+		if(!config) break;
+		
+		// NOTE(Ecy): this part for the device and decoder detection is actually hardcoded for now
+		// Because there is no need for now to search for it
+		// Although it would become the case in the future
+		if(config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+		   config->device_type == AV_HWDEVICE_TYPE_D3D11VA)
+		{
+			pixFmt = config->pix_fmt;
+			break;
+		}
+	}
+
 	if(decoder->codecContext == NULL)
 	{
 		// Copy context failed
@@ -61,39 +120,46 @@ LoadVideoContext(video_decode *decoder, char *filename)
 	}
 	
 	decoder->pFrame    = av_frame_alloc();
-	decoder->pFrameRGB = av_frame_alloc();
+	decoder->pFrameDest = av_frame_alloc();
 	decoder->packet    = av_packet_alloc();
-	
+
+#if 0	
 	decoder->swsCtx = sws_getContext(decoder->codecContext->width, decoder->codecContext->height, AV_PIX_FMT_YUV420P, 
 							decoder->codecContext->width, decoder->codecContext->height, AV_PIX_FMT_RGB24,
 							SWS_BICUBIC, NULL, NULL, NULL);
 	
 	u32 num_bytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, decoder->codecContext->width, decoder->codecContext->height, 1);
 	unsigned char* frame_buffer = (u8*)av_malloc(num_bytes);
-	av_image_fill_arrays(decoder->pFrameRGB->data,       //uint8_t *dst_data[4], 
-						 decoder->pFrameRGB->linesize,   //int dst_linesize[4],
+	av_image_fill_arrays(decoder->pFrameDest->data,       //uint8_t *dst_data[4], 
+						 decoder->pFrameDest->linesize,   //int dst_linesize[4],
 						 frame_buffer,          //const uint8_t * src,
 						 AV_PIX_FMT_RGB24,      //enum AVPixelFormat pix_fmt,
 						 decoder->codecContext->width,   //int width, 
 						 decoder->codecContext->height,  //int height,
 						 1);                    //int align);
-	
-	decoder->pFrameRGB->width = decoder->codecContext->width;
-	decoder->pFrameRGB->height = decoder->codecContext->height;
+
 	
 	if(!decoder->swsCtx)
 	{
 		// no scaler context found
 		return;
 	}
-
+#endif
+	
+	decoder->pFrameDest->width = decoder->codecContext->width;
+	decoder->pFrameDest->height = decoder->codecContext->height;
+	
+	//auto descriptor = av_pix_fmt_desc_get(AV_PIX_FMT_NV12);
+	
 	decoder->isLoaded = true;
 }
 
- internal void 
+internal void
 Decode(video_decode *decoder)
 {
-    int ret;
+    i32 ret, size;
+	
+	u8* frameBuffer = NULL;
 	
 	char buffer[1024];
     ret = avcodec_send_packet(decoder->codecContext, decoder->packet);
@@ -117,16 +183,28 @@ Decode(video_decode *decoder)
             return;
         }
 		
-		if(ret >= 0)
+		if(decoder->pFrame->format == pixFmt)
 		{
-			ret = sws_scale(decoder->swsCtx, (const u8* const*)decoder->pFrame->data, decoder->pFrame->linesize,
-							0, decoder->pFrame->height,
-							(u8 *const *)decoder->pFrameRGB->data, decoder->pFrameRGB->linesize);
+			AVFrame *frame = decoder->pFrameDest;
+			ret = av_hwframe_transfer_data(frame, decoder->pFrame, 0);
+			if(ret < 0)
+			{
+				// Error transfering data to system memory				
+			}
 		}
-    }
+#if 0
+		else
+		{
+			ret = sws_scale(decoder->swsCtx, (const u8* const*)decoder->pFrame->data, 
+							decoder->pFrame->linesize, 0, decoder->pFrame->height,
+							(u8 *const *)decoder->pFrameDest->data, decoder->pFrameDest->linesize);
+			
+		}
+#endif
+    }	
 }
 
- internal void
+internal void
 UpdateDecode(video_decode *decoder)
 {
 	if(av_read_frame(decoder->formatContext, decoder->packet) >= 0)
@@ -141,7 +219,7 @@ UpdateDecode(video_decode *decoder)
 	}
 }
 
- internal void
+internal void
 FreeDecode(video_decode *decode)
 {
 	avformat_close_input(&decode->formatContext);
@@ -151,6 +229,6 @@ FreeDecode(video_decode *decode)
 	avcodec_free_context(&decode->codecContext);
 	
 	av_frame_unref(decode->pFrame);
-	av_frame_unref(decode->pFrameRGB);
+	av_frame_unref(decode->pFrameDest);
 	av_packet_free(&decode->packet);
 }

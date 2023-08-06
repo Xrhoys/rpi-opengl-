@@ -16,6 +16,7 @@ extern "C" {
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/pixfmt.h>
+#include <libavutil/hwcontext.h>
 #ifdef __cplusplus
 }
 #endif
@@ -31,9 +32,11 @@ struct video_decode
 	AVCodec         *codec;
 	AVCodecContext  *codecContext;
 	
-	AVFrame         *pFrameRGB;
+	AVFrame         *pFrameDest;
 	AVFrame         *pFrame;
 	AVPacket        *packet;
+	
+	u8              *frameData;
 };
 
 
