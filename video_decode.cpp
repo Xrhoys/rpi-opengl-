@@ -87,10 +87,12 @@ LoadVideoContext(video_decode *decoder, char *filename)
 		return;
 	}
 
+	//auto descriptor = av_pix_fmt_desc_get(AV_PIX_FMT_NV12);
+	
 	decoder->isLoaded = true;
 }
 
- internal void 
+internal void
 Decode(video_decode *decoder)
 {
     int ret;
@@ -105,8 +107,9 @@ Decode(video_decode *decoder)
         return;
     }
 	
+	decoder->pFrame = av_frame_alloc();
     while (ret >= 0) {
-        ret = avcodec_receive_frame(decoder->codecContext, decoder->pFrame);
+		ret = avcodec_receive_frame(decoder->codecContext, decoder->pFrame);
 		
 		av_strerror(ret, buffer, 1024);
 		
@@ -126,7 +129,7 @@ Decode(video_decode *decoder)
     }
 }
 
- internal void
+internal void
 UpdateDecode(video_decode *decoder)
 {
 	if(av_read_frame(decoder->formatContext, decoder->packet) >= 0)
@@ -141,7 +144,7 @@ UpdateDecode(video_decode *decoder)
 	}
 }
 
- internal void
+internal void
 FreeDecode(video_decode *decode)
 {
 	avformat_close_input(&decode->formatContext);
