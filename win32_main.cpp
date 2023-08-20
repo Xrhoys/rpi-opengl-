@@ -13,6 +13,7 @@ global u64       g_bootCounter;
 global u64       g_lastCounter;
 global u64       lastCycleCount;
 global r64       cyclesPerFrame;
+global HWND      hwnd;
 
 global app_state g_state;
 
@@ -84,7 +85,7 @@ Win32ProcessInputEvent(app_keyboard_input *keyInput, app_pointer_input *pointerI
 #endif
 			b32 isDown = keyboardData.Flags == RI_KEY_MAKE;
 			u8  key     = keyboardData.VKey;
-#if 1
+#if 0
 			char buffer[256];
 			_snprintf_s(buffer, sizeof(buffer), "State: %c, Input: %d\n", key, isDown);
 			OutputDebugStringA(buffer);
@@ -313,54 +314,11 @@ WinMain(HINSTANCE Instance,
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), 
 		NULL, NULL, NULL, NULL, _T("RPI Emulation"), NULL };
     RegisterClassEx(&wc);
-    HWND hwnd = CreateWindow(wc.lpszClassName, _T("RPI Emulation"), WS_OVERLAPPEDWINDOW, 
+    hwnd = CreateWindow(wc.lpszClassName, _T("RPI Emulation"), WS_OVERLAPPEDWINDOW, 
 							 100, 100, WINDOW_WIDTH, WINDOW_HEIGHT, NULL, NULL, wc.hInstance, NULL);
     
     ShowWindow(hwnd, SW_SHOWDEFAULT);
     UpdateWindow(hwnd);
-	
-	HDC hdc = GetDC(hwnd);
-    EGLDisplay eglDisplay = eglGetDisplay(hdc);
-	EGLint eglVersionMajor, eglVersionMinor;
-    eglInitialize(eglDisplay, &eglVersionMajor, &eglVersionMinor);
-	
-	eglBindAPI(EGL_OPENGL_ES_API);
-	
-	EGLint configAttributes[] =
-	{
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_DEPTH_SIZE, 16,
-		EGL_BLUE_SIZE, 8,
-		EGL_GREEN_SIZE, 8,
-		EGL_RED_SIZE, 8,
-		EGL_ALPHA_SIZE, 8,
-		EGL_NONE
-	};
-	
-	EGLint surfaceAttributes[] = { EGL_NONE };
-	EGLint contextAttributes[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
-	
-	EGLint nrOfConfigs;
-	EGLConfig windowConfig;
-	eglChooseConfig(eglDisplay, configAttributes, &windowConfig, 1, &nrOfConfigs);
-	EGLSurface eglSurface = eglCreateWindowSurface(eglDisplay, windowConfig, hwnd, surfaceAttributes);
-	if (eglSurface == EGL_NO_SURFACE) {
-		EGLint error = eglGetError();
-		
-		char *errorStr = getErrorStr(error);
-		fprintf(stdout, "Could not create EGL surface : %s\n", errorStr);
-		return 1;
-	}
-	
-	EGLContext eglContext = eglCreateContext(eglDisplay, windowConfig, NULL, contextAttributes);
-	
-	i32 eglNumConfigs;
-	eglGetConfigs(eglDisplay, NULL, 0, &eglNumConfigs);
-	EGLConfig *eglConfigs = (EGLConfig*)VirtualAlloc(0, sizeof(EGLConfig) * eglNumConfigs, 
-													 MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-	
-	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	
 	app_keyboard_input keyInputs[2] = {};
 	app_keyboard_input *oldKeyInput = &keyInputs[0];
@@ -398,7 +356,7 @@ WinMain(HINSTANCE Instance,
 		
 		g_state.permanentStorageSize = Megabytes(256);
 		g_state.permanentStorage = VirtualAlloc(0, g_state.permanentStorageSize, 
-												  MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+												MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
 		if(!g_state.permanentStorage)
 		{
 			// TODO(Ecy): log errors
@@ -406,7 +364,7 @@ WinMain(HINSTANCE Instance,
 		}
 		g_state.transientStorageSize = Gigabytes(1);
 		g_state.transientStorage     = VirtualAlloc(0, g_state.transientStorageSize, 
-													  MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+													MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
 		if(!g_state.transientStorage)
 		{
 			// TODO(Ecy): log errors
@@ -453,6 +411,119 @@ WinMain(HINSTANCE Instance,
 		}
 		
 	}
+	
+	// TODO(Ecy): make it so we can change renderer at runtime instead of build dependent 
+#ifdef BE_OPENGL	
+	HDC hdc = GetDC(hwnd);
+    EGLDisplay eglDisplay = eglGetDisplay(hdc);
+	EGLint eglVersionMajor, eglVersionMinor;
+    eglInitialize(eglDisplay, &eglVersionMajor, &eglVersionMinor);
+	
+	eglBindAPI(EGL_OPENGL_ES_API);
+	
+	EGLint configAttributes[] =
+	{
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_DEPTH_SIZE, 16,
+		EGL_BLUE_SIZE, 8,
+		EGL_GREEN_SIZE, 8,
+		EGL_RED_SIZE, 8,
+		EGL_ALPHA_SIZE, 8,
+		EGL_NONE
+	};
+	
+	EGLint surfaceAttributes[] = { EGL_NONE };
+	EGLint contextAttributes[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
+	
+	EGLint nrOfConfigs;
+	EGLConfig windowConfig;
+	eglChooseConfig(eglDisplay, configAttributes, &windowConfig, 1, &nrOfConfigs);
+	EGLSurface eglSurface = eglCreateWindowSurface(eglDisplay, windowConfig, hwnd, surfaceAttributes);
+	if (eglSurface == EGL_NO_SURFACE) {
+		EGLint error = eglGetError();
+		
+		char *errorStr = getErrorStr(error);
+		fprintf(stdout, "Could not create EGL surface : %s\n", errorStr);
+		return 1;
+	}
+	
+	EGLContext eglContext = eglCreateContext(eglDisplay, windowConfig, NULL, contextAttributes);
+
+	i32 eglNumConfigs;
+	eglGetConfigs(eglDisplay, NULL, 0, &eglNumConfigs);
+	EGLConfig *eglConfigs = (EGLConfig*)VirtualAlloc(0, sizeof(EGLConfig) * eglNumConfigs, 
+													 MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+	
+	eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
+	
+	InitRenderer();
+	
+#elif BE_VULKAN
+	
+	char *extensions[32];
+	u32 extensionCount = 0;
+	extensions[extensionCount++] = "VK_KHR_win32_surface";
+	
+	CreateDeviceContext(&renderContext, extensions, &extensionCount);
+	
+	VkResult result;
+	VkWin32SurfaceCreateInfoKHR createSurfaceInfo =
+	{
+		VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+		0,
+		0,
+		Instance,
+		hwnd,
+	};
+	
+	result = vkCreateWin32SurfaceKHR(renderContext.instance, &createSurfaceInfo, nullptr, &renderContext.surface);
+	CheckRes(result);
+	
+	// Check for WSI support
+	VkBool32 res;
+	vkGetPhysicalDeviceSurfaceSupportKHR(renderContext.physicalDevice, renderContext.queueFamily, 
+										 renderContext.surface, &res);
+	if(res != VK_TRUE)
+	{
+		// WSI not supported
+	}
+	
+	VkSurfaceFormatKHR formats[16];
+	u32 formatCount = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(renderContext.physicalDevice, renderContext.surface, &formatCount, nullptr);
+	if(formatCount > 0)
+	{
+		vkGetPhysicalDeviceSurfaceFormatsKHR(renderContext.physicalDevice, renderContext.surface, &formatCount, formats);
+	}
+	
+	renderContext.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+	VkPresentModeKHR presentModes[16];
+	u32 presentModeCount = 0;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(renderContext.physicalDevice, renderContext.surface, 
+											  &presentModeCount, nullptr);
+	if(presentModeCount > 0)
+	{
+		vkGetPhysicalDeviceSurfacePresentModesKHR(renderContext.physicalDevice, renderContext.surface, 
+												  &presentModeCount, presentModes);
+	}
+	
+	renderContext.surfaceFormat = formats[0];
+	for(u32 formatIndex = 0;
+		formatIndex < formatCount;
+		++formatIndex)
+	{
+		if(formats[formatIndex].format == VK_FORMAT_B8G8R8A8_UNORM && 
+		   formats[formatIndex].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR)
+		{
+			renderContext.surfaceFormat = formats[formatIndex];
+			break;
+		}
+	}
+	
+	CreateSwapchain(&renderContext);
+	CreatePipeline(&renderContext, &g_state);
+#endif
 	
 	InitApp(&g_state);
 	
@@ -542,10 +613,16 @@ WinMain(HINSTANCE Instance,
 			oldPointerInput = tempPointerInput;
 		}
 		
-		UpdateAndRenderApp(&g_state);
+		UpdateApp(&g_state);
 		
+#ifdef BE_OPENGL
+		Render();
+		// TODO(Ecy): opengl es render context
 		eglSwapBuffers(eglDisplay, eglSurface);
-		
+#elif BE_VULKAN
+		Render(&renderContext, &g_state);
+#endif
+
 		{
 			u64 endCycleCounter = __rdtsc();
 			u64 cyclesElapsed   = endCycleCounter - lastCycleCount;

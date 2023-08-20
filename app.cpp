@@ -6,9 +6,9 @@
 #define FONT_FILE "data/asset_data"
 #define SAMPLE_DATA "data/sample.mp4"
 
+// NOTE(Ecy): nothing of those should remain global => integrate into app state mega struct
 global video_decode decoder;
 global app_ui mainUi;
-GLuint texture;
 global memory_arena g_mainArena;
 global color DEFAULT_TEXT_COLOR = WHITE;
 
@@ -90,21 +90,10 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	
 	u8 *textureData = (u8*)fontFile.contents;
 	textureData += sizeof(asset_font);
-
-	glGenTextures(1, &texture);
 	
-	// TODO(Ecy): is this a behavior specific to opengl? 
-	// You probably need to generate before use if you want to use multiple textures: texImage2D etc.
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	MakeTexture(1, &texture);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, engine->asset.width, engine->asset.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 
-				 textureData);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	
+	PushDataToTexture(texture, engine->asset.width, engine->asset.height, textureData);
 	engine->textureId = texture;
 	
 	state->DEBUGPlatformFreeFileMemory(NULL, fontFile.contents);
@@ -156,7 +145,6 @@ InitApp(app_state *appContext)
 	app_keyboard_input *keyboardInput = appContext->keyboards[0];
 	app_pointer_input  *pointerInput  = appContext->pointers[0];
 	
-	InitRenderer();
 	InitFont(appContext, &g_fontEngine, "data/asset_data");
 	
 	LoadVideoContext(&decoder, SAMPLE_DATA);
@@ -185,7 +173,7 @@ InitApp(app_state *appContext)
 }
 
 internal void
-UpdateAndRenderApp(app_state *appContext)
+UpdateApp(app_state *appContext)
 {
 	app_keyboard_input *keyboardInput = appContext->keyboards[0];
 	app_pointer_input  *pointerInput  = appContext->pointers[0];
@@ -296,11 +284,7 @@ UpdateAndRenderApp(app_state *appContext)
 	if(decoder.isLoaded)
 	{
 		UpdateDecode(&decoder);
-		glBindTexture(GL_TEXTURE_2D, g_bgTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB,
-					 GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
-		glGenerateMipmap(GL_TEXTURE_2D);
+		PushDataToTextureRGB(g_bgTexture, decoder.codecContext->width, decoder.codecContext->height, 
+						  decoder.pFrameRGB->data[0]);
 	}
-	
-	Render();
 }
