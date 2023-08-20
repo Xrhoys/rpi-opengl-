@@ -147,7 +147,7 @@ InitApp(app_state *appContext)
 	
 	InitFont(appContext, &g_fontEngine, "data/asset_data");
 	
-	LoadVideoContext(&decoder, SAMPLE_DATA);
+	//LoadVideoContext(&decoder, SAMPLE_DATA);
 	
 	{
 		// NOTE(Ecy): not sure if this is the best solution, but for the time being, 

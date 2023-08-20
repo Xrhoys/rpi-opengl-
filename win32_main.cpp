@@ -17,6 +17,12 @@ global HWND      hwnd;
 
 global app_state g_state;
 
+internal
+DEBUG_PLATFORM_PRINT_OUT(Win32OutputDebugString)
+{
+	OutputDebugStringA(buffer);
+}
+
 internal r32
 Win32GetSecondsElapsed(u64 start, u64 end)
 {
@@ -353,7 +359,8 @@ WinMain(HINSTANCE Instance,
 		g_state.DEBUGPlatformReadEntireFile  = Win32ReadEntireFile;
 		g_state.DEBUGPlatformWriteEntireFile = Win32WriteEntireFile;
 		g_state.DEBUGPlatformFreeFileMemory  = Win32FreeFile;
-		
+		g_state.DEBUGPlatformPrint           = Win32OutputDebugString;
+			
 		g_state.permanentStorageSize = Megabytes(256);
 		g_state.permanentStorage = VirtualAlloc(0, g_state.permanentStorageSize, 
 												MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
@@ -460,6 +467,7 @@ WinMain(HINSTANCE Instance,
 	InitRenderer();
 	
 #elif BE_VULKAN
+	vk_render_context renderContext = {};
 	
 	char *extensions[32];
 	u32 extensionCount = 0;

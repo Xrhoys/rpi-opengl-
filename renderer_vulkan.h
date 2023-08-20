@@ -10,17 +10,25 @@
 
 #define SEMAPHORE_POOL_SIZE 256
 #define SWAP_COMMAND_POOL_SIZE 16
+// NOTE(Ecy): do we need a check return instead?
+#define CheckRes(name) Assert(name == VK_SUCCESS)
 
 struct vk_per_frame
 {
-	VkDevice device;
-	VkFence queueSubmitFence;
-	VkCommandPool primaryCommandPool;
-	VkCommandBuffer primaryCommandBuffer;
-	VkSemaphore swapChainSemaphore;
-	VkSemaphore swapChainReleaseSemaphore;
+	VkFence fence;
 	
-	i32 queueIndex;
+	VkCommandPool   commandPool;
+	VkCommandBuffer commandBuffer;
+	VkFramebuffer   framebuffer;
+	
+	VkImage         backbuffer;
+	VkImageView     backbufferView;
+};
+
+struct vk_frame_semaphores
+{
+	VkSemaphore     imageAcquiredSemaphore;
+	VkSemaphore     renderCompleteSemaphore;
 };
 
 struct semaphore_stack
@@ -37,9 +45,6 @@ struct vk_render_context
 	VkSurfaceKHR          surface;
 	VkSwapchainKHR        swapchain;
 	u32                   imageCount;
-	VkImage               images[SWAP_COMMAND_POOL_SIZE];
-	VkImageView           backbufferViews[SWAP_COMMAND_POOL_SIZE];
-	VkFramebuffer         framebuffer[SWAP_COMMAND_POOL_SIZE];
 	VkSemaphore           queueSubmitFence;
 	u32                   queueFamily;
 	VkRenderPass          renderpass;
@@ -51,9 +56,16 @@ struct vk_render_context
 	VkSurfaceFormatKHR    surfaceFormat;
 	VkExtent2D            extent;
 	VkPresentModeKHR      presentMode;
+	u32                   frameIndex;
+	u32                   semaphoreIndex;
+	
+	b32                   swapChainRebuild;
 	
 	vk_per_frame          perFrame[16];
+	vk_frame_semaphores   semaphores[16];
 	semaphore_stack       semaPool;
+	
+	VkDebugReportCallbackEXT debugReport = VK_NULL_HANDLE;
 };
 
 inline VkSemaphore

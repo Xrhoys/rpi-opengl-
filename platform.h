@@ -104,6 +104,9 @@ extern "C" {
 #define DEBUG_CLOCK_GET_TIME(name) r32 name(void)
 	typedef DEBUG_CLOCK_GET_TIME(debug_clock_get_time);
 	
+#define DEBUG_PLATFORM_PRINT_OUT(name) void name(char *buffer, u32 size)
+	typedef DEBUG_PLATFORM_PRINT_OUT(debug_platform_print_out);
+		
 	typedef struct app_input_state
 	{
 		u32 halfTransitionCount;
@@ -150,6 +153,8 @@ extern "C" {
 		debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
 		debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 		debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
+		
+		debug_platform_print_out         *DEBUGPlatformPrint;
 		
 		r64       clock;
 		r64       frameTime;
