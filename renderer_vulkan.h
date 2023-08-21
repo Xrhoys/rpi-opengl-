@@ -3,8 +3,9 @@
 #ifndef RENDERER_VULKAN_H
 #define RENDERER_VULKAN_H
 
+#define VK_ENABLE_BETA_EXTENSIONS
 #include <vulkan/vulkan.h>
-// TODO(Ecy): include order problem, to fix
+#include <vulkan/vulkan_core.h>
 
 #define SEMAPHORE_POOL_SIZE 256
 #define SWAP_COMMAND_POOL_SIZE 16

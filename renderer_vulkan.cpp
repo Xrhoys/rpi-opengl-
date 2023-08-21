@@ -73,7 +73,7 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 	
 	// Create Vulkan instance
 	{
-		extensions[(*extensionCount)++] = "VK_KHR_surface";
+		extensions[(*extensionCount)++] = VK_KHR_SURFACE_EXTENSION_NAME;
 		
 		VkInstanceCreateInfo instanceCreateInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO}; 
 		
@@ -175,15 +175,45 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 	
 	// Create logical device
 	{
-		char *deviceExtensions[16];
-		u32 deviceExtensionCount = 0;
+		char *deviceExtensions[] =
+		{
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+			"VK_KHR_sampler_ycbcr_conversion",
+			VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME,
+			VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+			VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+			VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
+			VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
+			VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
+			VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME,
+			VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME,
+		};
 		
-		deviceExtensions[deviceExtensionCount++] = "VK_KHR_swapchain";
+		u32 extSize = 10;
 		
 		u32 propertiesCount;
 		VkExtensionProperties properties[256];
 		vkEnumerateDeviceExtensionProperties(context->physicalDevice, nullptr, &propertiesCount, nullptr);
 		vkEnumerateDeviceExtensionProperties(context->physicalDevice, nullptr, &propertiesCount, properties);
+		
+		for(u32 index = 0;
+			index < extSize;
+			++index)
+		{
+			b32 isIncluded = false;
+			for(u32 extIndex = 0;
+				extIndex < propertiesCount;
+				++extIndex)
+			{
+				if(!strcmp(properties[extIndex].extensionName, deviceExtensions[index]))
+				{
+					isIncluded = true;
+					break;
+				} 
+			}
+			
+			Assert(isIncluded);
+		}
 		
 		r32 queuePriority[] = { 1.0f };
 		VkDeviceQueueCreateInfo queueInfo[1] = {};
@@ -196,7 +226,7 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 		createInfo.queueCreateInfoCount = sizeof(queueInfo) / sizeof(queueInfo[0]);
 		createInfo.pQueueCreateInfos = queueInfo;
-		createInfo.enabledExtensionCount = deviceExtensionCount;
+		createInfo.enabledExtensionCount = extSize;
 		createInfo.ppEnabledExtensionNames = deviceExtensions;
 		
 		result = vkCreateDevice(context->physicalDevice, &createInfo, nullptr, &context->device);
@@ -518,6 +548,12 @@ CreatePipeline(vk_render_context *context, app_state *appContext)
 	
 	vkDestroyShaderModule(context->device, shaderStages[0].module, nullptr);
 	vkDestroyShaderModule(context->device, shaderStages[1].module, nullptr);
+}
+
+internal void
+CreateVideoSession()
+{
+	
 }
 
 internal void 

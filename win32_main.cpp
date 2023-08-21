@@ -471,7 +471,7 @@ WinMain(HINSTANCE Instance,
 	
 	char *extensions[32];
 	u32 extensionCount = 0;
-	extensions[extensionCount++] = "VK_KHR_win32_surface";
+	extensions[extensionCount++] = VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 	
 	CreateDeviceContext(&renderContext, extensions, &extensionCount);
 	
