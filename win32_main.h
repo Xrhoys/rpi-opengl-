@@ -3,6 +3,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include <vulkan/vulkan_win32.h>
+
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 800
 #define REFRESH_RATE 120

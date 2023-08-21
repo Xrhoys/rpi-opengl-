@@ -5,8 +5,6 @@
 
 #include <vulkan/vulkan.h>
 // TODO(Ecy): include order problem, to fix
-#include <windows.h>
-#include <vulkan/vulkan_win32.h>
 
 #define SEMAPHORE_POOL_SIZE 256
 #define SWAP_COMMAND_POOL_SIZE 16

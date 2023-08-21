@@ -8,6 +8,7 @@
 #include "video_decode.h"
 #include "asset_build.h"
 #include "renderer.h"
+#include "renderer_vulkan.h"
 #include "utils.h"
 
 #define Kilobytes(n) n * 1024

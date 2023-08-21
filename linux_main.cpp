@@ -373,6 +373,70 @@ int main(int argc, char *argv[]) {
 	XSync(xdisplay, window);
 	XStoreName(xdisplay, window, "RPI Emulation");
 	
+	app_keyboard_input keyInputs[2] = {};
+	app_keyboard_input *oldKeyInput = &keyInputs[0];
+	app_keyboard_input *newKeyInput = &keyInputs[1];
+	
+	app_pointer_input pointerInputs[2] = {};
+	app_pointer_input *oldPointerInput = &pointerInputs[0];
+	app_pointer_input *newPointerInput = &pointerInputs[1];
+	
+	app_state g_state;
+	{
+		g_state.running = true;
+		
+		g_state.clock = 0;
+		g_state.frameTime = 0;
+		g_state.getTime = LinuxGetLastElapsed;
+		
+		// NOTE(Ecy): needs to set at runtime + dynamic with resize event
+		XWindowAttributes winAttr;
+		XGetWindowAttributes(xdisplay, window, &winAttr);
+		g_state.width = winAttr.width;
+		g_state.height = winAttr.height;
+		
+		g_state.DEBUGPlatformReadEntireFile  = LinuxReadEntireFile;
+		g_state.DEBUGPlatformWriteEntireFile = LinuxWriteEntireFile;
+		g_state.DEBUGPlatformFreeFileMemory  = LinuxFreeFile;
+		
+		g_state.permanentStorageSize = Megabytes(256);
+		g_state.permanentStorage = malloc(g_state.permanentStorageSize);
+		if(!g_state.permanentStorage)
+		{
+			// TODO(Ecy): log errors
+			return -1;
+		}
+		g_state.transientStorageSize = Gigabytes(1);
+		g_state.transientStorage     = malloc(g_state.transientStorageSize);
+		if(!g_state.transientStorage)
+		{
+			// TODO(Ecy): log errors
+			return -1;
+		}
+		
+		g_state.keyboards[0] = oldKeyInput;
+		g_state.pointers[0]  = oldPointerInput;
+		
+		g_state.keyboards[0]->isConnected = true;
+		g_state.pointers[0]->isConnected = true;
+		
+		for(u32 index = 0;
+			index < KEY_COUNT;
+			index++)
+		{
+			g_state.keyboards[0]->keys[index].startHoldTime = INFINITY;
+		}
+		
+		for(u32 index = 0;
+			index < MOUSE_BUTTON_COUNT;
+			index++)
+		{
+			g_state.pointers[0]->buttons[index].startHoldTime = INFINITY;
+		}
+	}
+	
+#ifdef BE_OPENGL
+	
 	// EGL
 	EGLDisplay eglDisplay = {};
 	EGLSurface eglSurface = {};
@@ -429,68 +493,74 @@ int main(int argc, char *argv[]) {
 		
 		eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	}
-
-	app_keyboard_input keyInputs[2] = {};
-	app_keyboard_input *oldKeyInput = &keyInputs[0];
-	app_keyboard_input *newKeyInput = &keyInputs[1];
 	
-	app_pointer_input pointerInputs[2] = {};
-	app_pointer_input *oldPointerInput = &pointerInputs[0];
-	app_pointer_input *newPointerInput = &pointerInputs[1];
+	InitRenderer();
+#elif BE_VULKAN
+	vk_render_context renderContext = {};
 	
-	app_state g_state;
+	char *extensions[32];
+	u32 extensionCount = 0;
+	extensions[extensionCount++] = "VK_KHR_xlib_surface";
+	
+	CreateDeviceContext(&renderContext, extensions, &extensionCount);
+	
+	VkResult result;
+	VkXlibSurfaceCreateInfoKHR createSurfaceInfo =
 	{
-		g_state.running = true;
-		
-		g_state.clock = 0;
-		g_state.frameTime = 0;
-		g_state.getTime = LinuxGetLastElapsed;
-		
-		// NOTE(Ecy): needs to set at runtime + dynamic with resize event
-		XWindowAttributes winAttr;
-		XGetWindowAttributes(xdisplay, window, &winAttr);
-		g_state.width = winAttr.width;
-		g_state.height = winAttr.height;
-		
-		g_state.DEBUGPlatformReadEntireFile  = LinuxReadEntireFile;
-		g_state.DEBUGPlatformWriteEntireFile = LinuxWriteEntireFile;
-		g_state.DEBUGPlatformFreeFileMemory  = LinuxFreeFile;
-
-		g_state.permanentStorageSize = Megabytes(256);
-		g_state.permanentStorage = malloc(g_state.permanentStorageSize);
-		if(!g_state.permanentStorage)
+		VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+		0,
+		0,
+		xdisplay,
+		window,
+	};
+	
+	result = vkCreateXlibSurfaceKHR(renderContext.instance, &createSurfaceInfo, nullptr, &renderContext.surface);
+	CheckRes(result);
+	
+	// Check for WSI support
+	VkBool32 res;
+	vkGetPhysicalDeviceSurfaceSupportKHR(renderContext.physicalDevice, renderContext.queueFamily, 
+										 renderContext.surface, &res);
+	if(res != VK_TRUE)
+	{
+		// WSI not supported
+	}
+	
+	VkSurfaceFormatKHR formats[16];
+	u32 formatCount = 0;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(renderContext.physicalDevice, renderContext.surface, &formatCount, nullptr);
+	if(formatCount > 0)
+	{
+		vkGetPhysicalDeviceSurfaceFormatsKHR(renderContext.physicalDevice, renderContext.surface, &formatCount, formats);
+	}
+	
+	renderContext.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+	VkPresentModeKHR presentModes[16];
+	u32 presentModeCount = 0;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(renderContext.physicalDevice, renderContext.surface, 
+											  &presentModeCount, nullptr);
+	if(presentModeCount > 0)
+	{
+		vkGetPhysicalDeviceSurfacePresentModesKHR(renderContext.physicalDevice, renderContext.surface, 
+												  &presentModeCount, presentModes);
+	}
+	
+	renderContext.surfaceFormat = formats[0];
+	for(u32 formatIndex = 0;
+		formatIndex < formatCount;
+		++formatIndex)
+	{
+		if(formats[formatIndex].format == VK_FORMAT_B8G8R8A8_UNORM && 
+		   formats[formatIndex].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR)
 		{
-			// TODO(Ecy): log errors
-			return -1;
-		}
-		g_state.transientStorageSize = Gigabytes(1);
-		g_state.transientStorage     = malloc(g_state.transientStorageSize);
-		if(!g_state.transientStorage)
-		{
-			// TODO(Ecy): log errors
-			return -1;
-		}
-
-		g_state.keyboards[0] = oldKeyInput;
-		g_state.pointers[0]  = oldPointerInput;
-		
-		g_state.keyboards[0]->isConnected = true;
-		g_state.pointers[0]->isConnected = true;
-		
-		for(u32 index = 0;
-			index < KEY_COUNT;
-			index++)
-		{
-			g_state.keyboards[0]->keys[index].startHoldTime = INFINITY;
-		}
-		
-		for(u32 index = 0;
-			index < MOUSE_BUTTON_COUNT;
-			index++)
-		{
-			g_state.pointers[0]->buttons[index].startHoldTime = INFINITY;
+			renderContext.surfaceFormat = formats[formatIndex];
+			break;
 		}
 	}
+	
+	CreateSwapchain(&renderContext);
+	CreatePipeline(&renderContext, &g_state);
+#endif
 	
 	InitApp(&g_state);
 	
@@ -567,11 +637,17 @@ int main(int argc, char *argv[]) {
 			newPointerInput = oldPointerInput;
 			oldPointerInput = tempPointerInput;
 		}
+		
+		UpdateApp(&g_state);
 
-		
-		UpdateAndRenderApp(&g_state);
-		
+#ifdef BE_OPENGL
+		Render();
+		// TODO(Ecy): opengl es render context
 		eglSwapBuffers(eglDisplay, eglSurface);
+#elif BE_VULKAN
+		Render(&renderContext, &g_state);
+#endif
+		
 		// Timer update
 		{
 			// NOTE(Ecy): placeholder
