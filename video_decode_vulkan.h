@@ -13,4 +13,9 @@
 
 #define MAX_BOUND_MEMORY 8
 
+struct VulkanVideoSession
+{
+	
+};
+
 #endif //VIDEO_DECODE_VULKAN_H

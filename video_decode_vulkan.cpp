@@ -35,6 +35,8 @@ VkImageView videobufferView;
 VkVideoProfileInfoKHR videoProfile;
 VkVideoSessionKHR session;
 
+VkDeviceMemory memoryBound[MAX_BOUND_MEMORY];
+
 // TODO(Ecy): refer to VulkanVideoParser.h from the nvidia decoder sample code
 internal void
 DetectVideoFormat()
@@ -43,7 +45,7 @@ DetectVideoFormat()
 }
 
 inline VkResult
-InitVideoDecoder(vk_render_context *context)
+InitVideoDecoder(vk_render_context *context, VulkanVideoSession *videoSession)
 {
 	VkExtent2D maxCodedExtent = {};
 	
@@ -101,4 +103,56 @@ InitVideoDecoder(vk_render_context *context)
 	CheckRes(result);
 	
 	// Continue to allocate resources after creating video session: VulkanVideoSession.cpp: l.94
+	
+	u32 decodeSessionBindMemoryCount = memoryRequirementCount;
+	VkBindVideoSessionMemoryInfoKHR decodeSessionBindMemory[MAX_BOUND_MEMORY];
+	
+	for(u32 index = 0;
+		index < decodeSessionBindMemoryCount;
+		++index)
+	{
+		u32 memoryTypeIndex = 0;
+        u32 memoryTypeBits = memoryRequirements[index].memoryRequirements.memoryTypeBits;
+        if (memoryTypeBits == 0) {
+            return VK_ERROR_INITIALIZATION_FAILED;
+        }
+		
+        // Find an available memory type that satisfies the requested properties.
+        for (; !(memoryTypeBits & 1); ++memoryTypeIndex ) {
+            memoryTypeBits >>= 1;
+        }
+		
+        VkMemoryAllocateInfo memInfo = {
+            VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,                          // sType
+            NULL,                                                            // pNext
+            memoryRequirements[index].memoryRequirements.size,               // allocationSize
+            memoryTypeIndex,                                                 // memoryTypeIndex
+        };
+		
+        result = vkAllocateMemory(context->device, &memInfo, nullptr, &memoryBound[index]);
+        if (result != VK_SUCCESS) {
+            return result;
+        }
+		
+        Assert(result == VK_SUCCESS);
+        decodeSessionBindMemory[index].pNext  = NULL;
+        decodeSessionBindMemory[index].sType  = VK_STRUCTURE_TYPE_BIND_VIDEO_SESSION_MEMORY_INFO_KHR;
+        decodeSessionBindMemory[index].memory = memoryBound[index];
+		
+        decodeSessionBindMemory[index].memoryBindIndex = memoryRequirements[index].memoryBindIndex;
+        decodeSessionBindMemory[index].memoryOffset = 0;
+        decodeSessionBindMemory[index].memorySize = memoryRequirements[index].memoryRequirements.size;
+	}
+	
+	result = vkBindVideoSessionMemoryKHR(context->device, session, decodeSessionBindMemoryCount, decodeSessionBindMemory);
+	if(result != VK_SUCCESS)
+	{
+		return result;
+	}
+	
+	{
+		// Define output info
+	}
+	
+	return result;
 }
