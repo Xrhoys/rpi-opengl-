@@ -15,6 +15,8 @@
 #define Megabytes(n) n * 1024 * 1024
 #define Gigabytes(n) n * 1024 * 1024 * 1024
 
+#define ArrSize(s) sizeof(s) / sizeof(s[0])
+
 #define MAX_UI_NODE_COUNT 1000
 
 enum Axis2

@@ -15,6 +15,7 @@
 
 struct VulkanVideoSession
 {
+	char *filename;
 	
 };
 

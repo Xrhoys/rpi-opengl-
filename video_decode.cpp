@@ -1,5 +1,11 @@
 #include "video_decode.h"
 
+internal void
+VideoDemuxer(char *filename)
+{
+	
+}
+
 // NOTE(Ecy): return type is temporary
 internal void
 LoadVideoContext(video_decode *decoder, char *filename)

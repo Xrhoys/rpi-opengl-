@@ -36,5 +36,21 @@ struct video_decode
 	AVPacket        *packet;
 };
 
+struct demux_mp4_box_header
+{
+	// NOTE(Ecy): big-endian, network format
+		// NOTE(Ecy): if size == 1, largesize is read, if size = 0, last box, so goes all the way until EOF
+	u32 size;
+	u32 type;
+	u64 largesize;
+	char userType[16];
+};
+
+struct demux_mp4_box
+{
+	demux_mp4_box_header header;
+	char *data;
+};
+
 
 #endif //VIDEO_DECODE_H

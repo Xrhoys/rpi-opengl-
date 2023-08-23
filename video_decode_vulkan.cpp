@@ -42,6 +42,8 @@ internal void
 DetectVideoFormat()
 {
 	//VkParserDetectedVideoFormat detectedFormat;
+	
+	
 }
 
 inline VkResult

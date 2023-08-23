@@ -163,10 +163,16 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 			 index < queueCount;
 			 ++index)
 		{
-			if (queues[index].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			if(queues[index].queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			{
 				context->queueFamily = index;
 				break;
+			}
+			
+			if(queues[index].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+			{
+				context->queueDecodeFamily = index;
+				context->queueDecodeNums   = queues[index].queueCount;
 			}
 		}
 		
@@ -216,15 +222,20 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 		}
 		
 		r32 queuePriority[] = { 1.0f };
-		VkDeviceQueueCreateInfo queueInfo[1] = {};
+		VkDeviceQueueCreateInfo queueInfo[2] = {};
 		queueInfo[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 		queueInfo[0].queueFamilyIndex = context->queueFamily;
 		queueInfo[0].queueCount = 1;
 		queueInfo[0].pQueuePriorities = queuePriority;
 		
+		queueInfo[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueInfo[1].queueFamilyIndex = context->queueDecodeFamily;
+		queueInfo[1].queueCount = context->queueDecodeNums;
+		queueInfo[1].pQueuePriorities = queuePriority;
+		
 		VkDeviceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		createInfo.queueCreateInfoCount = sizeof(queueInfo) / sizeof(queueInfo[0]);
+		createInfo.queueCreateInfoCount = ArrSize(queueInfo);
 		createInfo.pQueueCreateInfos = queueInfo;
 		createInfo.enabledExtensionCount = extSize;
 		createInfo.ppEnabledExtensionNames = deviceExtensions;
@@ -233,7 +244,13 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 		CheckRes(result);
 		
 		vkGetDeviceQueue(context->device, context->queueFamily, 0, &context->queue);
-		CheckRes(result);
+		
+		for(u32 index = 0;
+			index < context->queueDecodeNums;
+			++index)
+		{
+			vkGetDeviceQueue(context->device, context->queueDecodeFamily, 0, &context->decodeQueue[index]);
+		}
 	}
 	
 	// Create descriptor pool

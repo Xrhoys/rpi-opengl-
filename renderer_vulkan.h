@@ -46,15 +46,19 @@ struct vk_render_context
 	u32                   imageCount;
 	VkSemaphore           queueSubmitFence;
 	u32                   queueFamily;
+	u32                   queueDecodeFamily;
+	u32                   queueDecodeNums;
 	VkRenderPass          renderpass;
 	VkPipelineLayout      pipeLayout;
 	VkPipeline            pipeline;
 	VkDescriptorSet       descSet;
 	VkQueue               queue = VK_NULL_HANDLE;
+	VkQueue               decodeQueue[16];
 	VkDescriptorPool      descriptorPool = VK_NULL_HANDLE;
 	VkSurfaceFormatKHR    surfaceFormat;
 	VkExtent2D            extent;
 	VkPresentModeKHR      presentMode;
+	
 	u32                   frameIndex;
 	u32                   semaphoreIndex;
 	
