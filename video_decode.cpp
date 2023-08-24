@@ -1,9 +1,58 @@
 #include "video_decode.h"
 
 internal void
-VideoDemuxer(char *filename)
+MP4VideoDemuxer(debug_read_file_result *file)
 {
+	u8 *cursor = (u8*)file->contents;
+	u64 size = file->contentSize;
+	u32 end = cursor + size;
 	
+	while(cursor < end)
+	{
+		u32 boxSize = 0;
+		
+		demux_mp4_box box = {};
+		demux_mp4_box.header = *((demux_mp4_box_header*)cursor);
+		cursor += sizeof(demux_mp4_box_header);
+		
+		switch(box.header.size)
+		{
+			case 0:
+			{
+				// NOTE(Ecy): last box, size extends until the end of the file
+				boxSize = end - cursor;
+			}break;
+			
+			case 1:
+			{
+				// NOTE(Ecy): Large size is read instead
+				box.largesize = *((u64*)cursor);
+				cursor += sizeof(u64);
+				
+				boxSize = box.largesize;
+			}break;
+			
+			default:
+			{
+				boxSize = box.header.size;
+			}break;
+		}
+		
+		switch(box.header.type)
+		{
+			case demux_mp4_box_codes[DEMUX_MP4_BOX_FTYP]:
+			{
+				
+			}break;
+			
+			default:
+			{
+				// Unhandle type skip
+			}break;
+		}
+		
+		cursor += boxSize;
+	}
 }
 
 // NOTE(Ecy): return type is temporary
