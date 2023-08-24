@@ -54,6 +54,11 @@ MP4VideoDemuxer(debug_read_file_result *file)
 				box.brandCharSize   = boxSize - (cursor - boxCursor);
 			}break;
 			
+			case DEMUX_MP4_BOX_MOOV:
+			{
+				
+			}break;
+			
 			default:
 			{
 				// Unhandle type skip
