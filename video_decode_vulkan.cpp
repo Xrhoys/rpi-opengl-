@@ -62,11 +62,12 @@ InitVideoDecoder(vk_render_context *context, VulkanVideoSession *videoSession)
 	createInfo.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR;
 	createInfo.pVideoProfile = &profileInfo;
     createInfo.queueFamilyIndex = context->queueFamily; // Careful, is this main render or secondary render
-    createInfo.pictureFormat = pictureFormat;
+    //createInfo.pictureFormat = pictureFormat;
     createInfo.maxCodedExtent = context->extent; // Is this the right choice?
-    createInfo.maxDpbSlots = maxReferencePicturesSlotsCount;
-    createInfo.maxActiveReferencePictures = maxReferencePicturesActiveCount;
-	
+    //createInfo.maxDpbSlots = maxReferencePicturesSlotsCount;
+    //createInfo.maxActiveReferencePictures = maxReferencePicturesActiveCount;
+
+#if 0	
 	switch(pictureFormat)
 	{
 		case VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR:
@@ -85,7 +86,8 @@ InitVideoDecoder(vk_render_context *context, VulkanVideoSession *videoSession)
 			Assert(false);
 		}break;
 	}
-	
+#endif
+
 	VkResult result = vkCreateVideoSessionKHR(context->device, &createInfo, nullptr, &session);
 	if(result != VK_SUCCESS)
 	{

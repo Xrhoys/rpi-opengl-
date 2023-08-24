@@ -1,5 +1,7 @@
 #include "platform.h"
 
+#include "video_decode.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -294,4 +296,18 @@ int main()
 
 		WriteEntireFile(NULL, "asset_data", fontData.width * fontData.height * 4 + sizeof(asset_font), pixelMapBuffer);
 	}
+	
+	{
+		u32 output[DEMUX_MP4_BOX_COUNT];
+		// Generate u32 integer for mp4 box types
+		for(u32 index = 0;
+			index < DEMUX_MP4_BOX_COUNT;
+			++index)
+		{
+			output[index] = *((u32*)demux_mp4_box_codes[index]);
+		}
+		
+		int b = 0;
+	}
 }
+

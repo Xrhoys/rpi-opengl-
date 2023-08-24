@@ -3,17 +3,20 @@
 internal void
 MP4VideoDemuxer(debug_read_file_result *file)
 {
-	u8 *cursor = (u8*)file->contents;
-	u64 size = file->contentSize;
-	u32 end = cursor + size;
+	u8 *boxCursor = (u8*)file->contents;
+	u8 *end = boxCursor + file->contentSize;
 	
-	while(cursor < end)
+	while(boxCursor < end)
 	{
+		u8 *cursor = boxCursor;
 		u32 boxSize = 0;
 		
 		demux_mp4_box box = {};
-		demux_mp4_box.header = *((demux_mp4_box_header*)cursor);
-		cursor += sizeof(demux_mp4_box_header);
+		
+		box.header.size = _byteSwapU32(*((u32*)cursor));
+		cursor += sizeof(u32);
+		box.header.type = *((u32*)cursor);
+		cursor += sizeof(u32);
 		
 		switch(box.header.size)
 		{
@@ -26,13 +29,13 @@ MP4VideoDemuxer(debug_read_file_result *file)
 			case 1:
 			{
 				// NOTE(Ecy): Large size is read instead
-				box.largesize = *((u64*)cursor);
+				box.largesize = _byteSwapU64(*((u64*)cursor));
 				cursor += sizeof(u64);
 				
 				boxSize = box.largesize;
 			}break;
 			
-			default:
+			default: 
 			{
 				boxSize = box.header.size;
 			}break;
@@ -40,9 +43,15 @@ MP4VideoDemuxer(debug_read_file_result *file)
 		
 		switch(box.header.type)
 		{
-			case demux_mp4_box_codes[DEMUX_MP4_BOX_FTYP]:
+			case DEMUX_MP4_BOX_FTYP:
 			{
+				box.majorBrand = *((u32*)cursor);
+				cursor += sizeof(u32);
+				box.minorVersion = _byteSwapU32(*((u32*)cursor));
+				cursor += sizeof(u32);
 				
+				box.compatibleBrand = (char*)cursor;
+				box.brandCharSize   = boxSize - (cursor - boxCursor);
 			}break;
 			
 			default:
@@ -51,7 +60,7 @@ MP4VideoDemuxer(debug_read_file_result *file)
 			}break;
 		}
 		
-		cursor += boxSize;
+		boxCursor += boxSize;
 	}
 }
 
