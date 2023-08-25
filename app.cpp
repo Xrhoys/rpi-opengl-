@@ -150,9 +150,9 @@ InitApp(app_state *appContext)
 	InitFont(appContext, &g_fontEngine, "data/asset_data");
 	
 	//LoadVideoContext(&decoder, SAMPLE_DATA);
-	debug_read_file_result mp4File = appContext->DEBUGPlatformReadEntireFile(NULL, "data/sample.mp4");
+	//debug_read_file_result mp4File = appContext->DEBUGPlatformReadEntireFile(NULL, "data/sample.mp4");
 	
-	MP4VideoDemuxer(&mp4File);
+	//MP4VideoDemuxer(&mp4File);
 	
 	{
 		// NOTE(Ecy): not sure if this is the best solution, but for the time being, 

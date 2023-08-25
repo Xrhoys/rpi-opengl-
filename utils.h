@@ -45,6 +45,7 @@ LinearAlloc(memory_arena *arena, u32 size)
 	return returnCursor;
 }
 
+#if 0
 inline u32
 _byteSwapU32(u32 b)
 {
@@ -56,5 +57,6 @@ _byteSwapU64(u64 b)
 {
 	return _byteswap_uint64(b);
 }
+#endif
 
 #endif //UTILS_H

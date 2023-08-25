@@ -1,5 +1,6 @@
 #include "video_decode.h"
 
+#if 0
 internal void
 MP4VideoDemuxer(debug_read_file_result *file)
 {
@@ -68,6 +69,7 @@ MP4VideoDemuxer(debug_read_file_result *file)
 		boxCursor += boxSize;
 	}
 }
+#endif
 
 // NOTE(Ecy): return type is temporary
 internal void
@@ -132,7 +134,8 @@ LoadVideoContext(video_decode *decoder, char *filename)
 	decoder->pFrame    = av_frame_alloc();
 	decoder->pFrameRGB = av_frame_alloc();
 	decoder->packet    = av_packet_alloc();
-	
+
+#ifdef BE_SOFTWARE	
 	decoder->swsCtx = sws_getContext(decoder->codecContext->width, decoder->codecContext->height, AV_PIX_FMT_YUV420P, 
 							decoder->codecContext->width, decoder->codecContext->height, AV_PIX_FMT_RGB24,
 							SWS_BICUBIC, NULL, NULL, NULL);
@@ -149,12 +152,13 @@ LoadVideoContext(video_decode *decoder, char *filename)
 	
 	decoder->pFrameRGB->width = decoder->codecContext->width;
 	decoder->pFrameRGB->height = decoder->codecContext->height;
-	
+
 	if(!decoder->swsCtx)
 	{
 		// no scaler context found
 		return;
 	}
+#endif
 
 	//auto descriptor = av_pix_fmt_desc_get(AV_PIX_FMT_NV12);
 	
@@ -188,13 +192,14 @@ Decode(video_decode *decoder)
             fprintf(stderr, "Error during decoding\n");
             return;
         }
-		
+#ifdef BE_SOFTWARE
 		if(ret >= 0)
 		{
 			ret = sws_scale(decoder->swsCtx, (const u8* const*)decoder->pFrame->data, decoder->pFrame->linesize,
 							0, decoder->pFrame->height,
 							(u8 *const *)decoder->pFrameRGB->data, decoder->pFrameRGB->linesize);
 		}
+#endif
     }
 }
 

@@ -23,8 +23,11 @@ extern "C" {
 struct video_decode
 {
 	b32               isLoaded;
+
+#ifdef BE_SOFTWARE	
 	struct SwsContext *swsCtx;
-	
+#endif
+
 	i32             streamIndex;
 	AVFormatContext *formatContext;
 	AVCodec         *codec;
@@ -225,13 +228,33 @@ char *demux_mp4_box_codes[DEMUX_MP4_BOX_COUNT] =
 struct demux_mp4_box_header
 {
 	// NOTE(Ecy): big-endian, network format
-	// NOTE(Ecy): if size == 1, largesize is read, if size = 0, last box, so goes all the way until EOF
+	// if size == 1, largesize is read, 
+	// if size = 0, last box, so goes all the way until EOF
+	
+	// Box Header
 	u32 size;
 	u32 type;
+	
+	u64 largesize;
+	char userType[16];
+};
+
+struct demux_mp4_box_full_header
+{
+	u32 size;
+	u32 type;
+	
+	u64 largesize;
+	char userType[16];
+	
+	u32 version;
+	u8  flags[3];
 };
 
 struct demux_mp4_box_ftyp
-{	
+{
+	demux_mp4_box_header header;
+	
 	u32  majorBrand;
 	u32  minorVersion;
 	char *compatibleBrand;
@@ -239,15 +262,22 @@ struct demux_mp4_box_ftyp
 };
 
 struct demux_mp4_box_mvhd
-{	
-	u32 flags;
-	u8  version;
-	u32 creationTime;
-	u32 modificationTime;
+{
+	demux_mp4_box_full_header header;
+		
+	u64 creationTime;
+	u64 modificationTime;
 	u32 timescale;
-	u32 duration;
+	u64 duration;
+	
 	r32 rate;
-	r32 volume;
+	r32 volume; // fixed 16
+	
+	u16 reserved;
+	u32 reserved2[2];
+	u32 matrix[9];
+	u32 preDefined[6];
+	u32 nextTrackID;
 };
 
 struct demux_mp4_box_meta
@@ -255,19 +285,103 @@ struct demux_mp4_box_meta
 	demux_mp4_box_header header;
 };
 
-struct demux_mp4_box_trak
+struct demux_mp4_box_tkhd
 {
-	demux_mp4_box_tkhd header;
+	demux_mp4_box_full_header header;
+	
+	u64 creationTime;
+	u64 modificationTime;
+	u32 trackID;
+	u32 reserved;
+	u64 duration;
+	
+	u32 reserved2[2];
+	u16 layer;
+	u16 alternateGroup;
+	u16 volume;
+	u16 reserved3;
+	u32 matrix[9];
+	u32 width;
+	u32 height;
 };
 
-struct demux_mp4_box
+struct demux_mp4_box_tref_box
 {
 	demux_mp4_box_header header;
-	u64 largesize;
-	char userType[16];
 	
-	demux_mp4_box_ftyp ftyp;
+	u32  *trackIDs;
+	u32  trackIDCount;
+};
+
+struct demux_mp4_box_tref
+{
+	demux_mp4_box_header header;
 	
+	demux_mp4_box_tref_box *boxes;	
+	u32 count;
+};
+
+struct demux_mp4_box_trgr_box
+{
+	demux_mp4_box_full_header header;
+	u32 *trackGroupIds;
+};
+
+struct demux_mp4_box_trgr
+{
+	demux_mp4_box_header header;
+	
+	demux_mp4_box_trgr_box *boxes;
+	u32 count;
+};
+
+
+struct demux_mp4_box_mdhd
+{
+	demux_mp4_box_full_header header;
+	
+	u64 creationTime;
+	u64 modificationTime;
+	u32 timescale;
+	u64 duration;
+	
+	u16 language; // ISO-639-2/T language code
+	u16 preDefined;
+};
+
+struct demux_mp4_box_hdlr
+{
+	demux_mp4_box_full_header header;
+	
+	u32  preDefined;
+	u32  handlerType;
+	u32  reserved[3];
+	char *name;
+	u32  nameSize;
+};
+
+struct demux_mp4_box_minf
+{
+	// ...
+};
+
+struct demux_mp4_box_mdia
+{
+	demux_mp4_box_mdhd mdhd;
+	demux_mp4_box_minf minf;
+};
+
+struct demux_mp4_box_trak
+{
+	demux_mp4_box_tkhd tkhd;
+	demux_mp4_box_tref tref;
+	demux_mp4_box_trgr trgr;
+	demux_mp4_box_mdia mdia;
+	demux_mp4_box_hdlr hdlr;
+};
+
+struct demux_mp4_box_moov
+{
 	// MOOV
 	demux_mp4_box_mvhd mvhd;
 	demux_mp4_box_trak *trak;
