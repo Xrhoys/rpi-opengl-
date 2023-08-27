@@ -147,6 +147,7 @@ InitApp(app_state *appContext)
 	app_keyboard_input *keyboardInput = appContext->keyboards[0];
 	app_pointer_input  *pointerInput  = appContext->pointers[0];
 	
+	LoadVideoContext(&decoder, "data/sample.mp4");
 	InitFont(appContext, &g_fontEngine, "data/asset_data");
 	
 	{

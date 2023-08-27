@@ -1,39 +1,54 @@
 #include "video_decode_vulkan.h"
 
-global VkExtensionProperties 
+global const VkExtensionProperties 
 h264DecodeStdExtensionVersion = 
 { 
 	VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_EXTENSION_NAME, 
 	VK_STD_VULKAN_VIDEO_CODEC_H264_DECODE_SPEC_VERSION 
 };
 
-global VkExtensionProperties 
+global const VkExtensionProperties 
 h265DecodeStdExtensionVersion = 
 { 
 	VK_STD_VULKAN_VIDEO_CODEC_H265_DECODE_EXTENSION_NAME, 
 	VK_STD_VULKAN_VIDEO_CODEC_H265_DECODE_SPEC_VERSION 
 };
 
-global VkExtensionProperties 
+global const VkExtensionProperties 
 h264EncodeStdExtensionVersion = 
 { 
 	VK_STD_VULKAN_VIDEO_CODEC_H264_ENCODE_EXTENSION_NAME, 
 	VK_STD_VULKAN_VIDEO_CODEC_H264_ENCODE_SPEC_VERSION 
 };
 
-global VkExtensionProperties 
+global const VkExtensionProperties 
 h265EncodeStdExtensionVersion = 
 { 
 	VK_STD_VULKAN_VIDEO_CODEC_H265_ENCODE_EXTENSION_NAME, 
 	VK_STD_VULKAN_VIDEO_CODEC_H265_ENCODE_SPEC_VERSION 
 };
 
+// TODO(Ecy): generate it
+global const u32 H265_LEVEL_IDC_1_0 = (u32)(1.0 * 30);
+global const u32 H265_LEVEL_IDC_2_0 = (u32)(2.0 * 30);
+global const u32 H265_LEVEL_IDC_2_1 = (u32)(2.1 * 30);
+global const u32 H265_LEVEL_IDC_3_0 = (u32)(3.0 * 30);
+global const u32 H265_LEVEL_IDC_3_1 = (u32)(3.1 * 30);
+global const u32 H265_LEVEL_IDC_4_0 = (u32)(4.0 * 30);
+global const u32 H265_LEVEL_IDC_4_1 = (u32)(4.1 * 30);
+global const u32 H265_LEVEL_IDC_5_0 = (u32)(5.0 * 30);
+global const u32 H265_LEVEL_IDC_5_1 = (u32)(5.1 * 30);
+global const u32 H265_LEVEL_IDC_5_2 = (u32)(5.2 * 30);
+global const u32 H265_LEVEL_IDC_6_0 = (u32)(6.0 * 30);
+global const u32 H265_LEVEL_IDC_6_1 = (u32)(6.1 * 30);
+global const u32 H265_LEVEL_IDC_6_2 = (u32)(6.2 * 30);
+
 // TODO(Ecy): do some study of chrome subsampling (4:4:4, 4:2:0, etc.)
 VkBuffer videobuffer;
 VkImageView videobufferView;
 
 VkVideoProfileInfoKHR videoProfile;
-VkVideoSessionKHR session;
+VkVideoSessionKHR session = {};
 
 VkDeviceMemory memoryBound[MAX_BOUND_MEMORY];
 
@@ -144,7 +159,7 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
     profileInfo.chromaSubsampling = VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR; // Check support
     profileInfo.lumaBitDepth = VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR; // Check support
     profileInfo.chromaBitDepth = VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR;
-	VkVideoCapabilitiesKHR capabilities;
+	VkVideoCapabilitiesKHR capabilities = {};
 	VkResult res = context->api.vkGetPhysicalDeviceVideoCapabilitiesKHR(context->physicalDevice, &profileInfo, &capabilities);
 	CheckRes(res);
 	
@@ -165,7 +180,7 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 			&videoProfiles,
 			VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR,
 		};
-	
+		
 		u32 supportedFormatCount;
 		res = context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
 																	   &supportedFormatCount, nullptr);
@@ -190,32 +205,112 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 		supportedOutFormat = formatProperties[0].format;
 	}
 	
+	// Get DpbSlots
+	u8 stdLevelIdc = 0;
+	u32 maxLumaPS = 0;
+	{
+		switch(decoder->codecContext->level)
+		{
+			case H265_LEVEL_IDC_1_0: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_1_0;
+				maxLumaPS = 36864;
+			}break;
+			case H265_LEVEL_IDC_2_0: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_2_0;				
+				maxLumaPS = 122880;	
+			}break;
+			case H265_LEVEL_IDC_2_1: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_2_1;
+				maxLumaPS = 245760;
+			}break;
+			case H265_LEVEL_IDC_3_0: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_3_0;
+				maxLumaPS = 552960;	
+			}break;
+			case H265_LEVEL_IDC_3_1: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_3_1;
+				maxLumaPS = 983040;	
+			}break;
+			case H265_LEVEL_IDC_4_0: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_4_0;
+				maxLumaPS = 2228224;	
+			}break;
+			case H265_LEVEL_IDC_4_1: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_4_1;
+				maxLumaPS = 2228224;	
+			}break;
+			case H265_LEVEL_IDC_5_0: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_5_0;
+				maxLumaPS = 8912896;	
+			}break;
+			case H265_LEVEL_IDC_5_1: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_5_1;
+				maxLumaPS = 8912896;	
+			}break;
+			case H265_LEVEL_IDC_5_2: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_5_2;
+				maxLumaPS = 8912896;	
+			}break;
+			case H265_LEVEL_IDC_6_0: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_6_0;
+				maxLumaPS = 35651584;	
+			}break;
+			case H265_LEVEL_IDC_6_1: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_6_1;
+				maxLumaPS = 35651584;	
+			}break;
+			case H265_LEVEL_IDC_6_2: 
+			{
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_6_2;
+				maxLumaPS = 35651584;	
+			}break;
+			default: 
+			{
+				// invalid h.265 idc level
+				stdLevelIdc = STD_VIDEO_H265_LEVEL_IDC_6_2;
+				maxLumaPS = 35651584;
+			}break;
+		}
+		
+		
+	}
+	
 	VkExtent2D maxCodedExtent = {};
-	maxCodedExtent.width = capabilities.minCodedExtent.width;
-	maxCodedExtent.height = capabilities.minCodedExtent.height;
+	maxCodedExtent.width = 4096;
+	maxCodedExtent.height = 4096;
 	
 	VkVideoSessionCreateInfoKHR createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR;
 	createInfo.pVideoProfile = &profileInfo;
-    createInfo.queueFamilyIndex = context->queueFamily; // Careful, is this main render or secondary render
+    createInfo.queueFamilyIndex = context->queueDecodeFamily; // Careful, is this main render or secondary render
     createInfo.pictureFormat = supportedOutFormat;
     createInfo.maxCodedExtent = maxCodedExtent;
     createInfo.maxDpbSlots = 16; // seems to be the maxiumum settable
     createInfo.maxActiveReferencePictures = 16;
 	createInfo.referencePictureFormat = supportedDpbFormat;
 	
-	switch(supportedOutFormat)
+	switch(decoder->codec->id)
 	{
-		case VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR:
+		case AV_CODEC_ID_H264:
 		{
 			createInfo.pStdHeaderVersion = &h264DecodeStdExtensionVersion;
 		}break;
-		case VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR:
+		case AV_CODEC_ID_H265:
 		{
 			createInfo.pStdHeaderVersion = &h265DecodeStdExtensionVersion;
 		}break;
-		case VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_EXT:
-		case VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_EXT:
 		default:
 		{
 			// NOTE(Ecy): impossible code path
@@ -229,10 +324,10 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 		return result;
 	}
 	
-	u32 memoryRequirementCount;
-	VkVideoSessionMemoryRequirementsKHR memoryRequirements[MAX_BOUND_MEMORY];
+	u32 memoryRequirementCount = 0;
+	VkVideoSessionMemoryRequirementsKHR memoryRequirements[MAX_BOUND_MEMORY] = {};
 	
-	result = context->api.vkGetVideoSessionMemoryRequirementsKHR(context->device, session, &memoryRequirementCount, NULL);
+	result = context->api.vkGetVideoSessionMemoryRequirementsKHR(context->device, session, &memoryRequirementCount, nullptr);
 	CheckRes(result);
 	Assert(memoryRequirementCount <= MAX_BOUND_MEMORY);
 	

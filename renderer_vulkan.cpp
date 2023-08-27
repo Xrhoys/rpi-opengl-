@@ -104,7 +104,7 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 		
 		result = vkCreateInstance(&instanceCreateInfo, NULL, &context->instance);
 		CheckRes(result);
-	
+		
 		auto vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)
 			vkGetInstanceProcAddr(context->instance, "vkCreateDebugReportCallbackEXT");
         Assert(vkCreateDebugReportCallbackEXT != nullptr);
@@ -167,14 +167,22 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 			{
 				context->queueFamily = index;
 				break;
-			}
-			
+			}			
+		}
+		
+		for (u32 index = 0; 
+			 index < queueCount;
+			 ++index)
+		{
 			if(queues[index].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
 			{
 				context->queueDecodeFamily = index;
 				context->queueDecodeNums   = queues[index].queueCount;
+				break;
 			}
 		}
+		
+		
 		
 		Assert(context->queueFamily != (u32) - 1);
 	}
@@ -271,33 +279,31 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 	
 	// Query additional runtime function
 	{
-		{
-			PFN_vkVoidFunction bindVideoSessionFunc = vkGetDeviceProcAddr(context->device, 
-																		   "vkBindVideoSessionMemoryKHR");
-			Assert(bindVideoSessionFunc);
-			context->api.vkBindVideoSessionMemoryKHR = (vk_khr_bind_video_session_memory*)bindVideoSessionFunc;
-			
-			PFN_vkVoidFunction getPhysicalDeviceVideoCapabilities = 
-				vkGetInstanceProcAddr(context->instance, "vkGetPhysicalDeviceVideoCapabilitiesKHR");
-			Assert(getPhysicalDeviceVideoCapabilities);
-			context->api.vkGetPhysicalDeviceVideoCapabilitiesKHR = 
-			(vk_get_physical_device_video_capabilities*)getPhysicalDeviceVideoCapabilities;
-			
-			PFN_vkVoidFunction getPhysicalDeviceVideoFormat = 
-				vkGetInstanceProcAddr(context->instance, "vkGetPhysicalDeviceVideoFormatPropertiesKHR");
-			Assert(getPhysicalDeviceVideoFormat);
-			context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR = 
-			(vk_get_physical_device_video_format_properties*)getPhysicalDeviceVideoFormat;
-			
-			PFN_vkVoidFunction createVideoSession = vkGetDeviceProcAddr(context->device, "vkCreateVideoSessionKHR");
-			Assert(createVideoSession);
-			context->api.vkCreateVideoSessionKHR = (vk_create_video_session*)createVideoSession;
-
-			PFN_vkVoidFunction bindVideoSessionMemory = vkGetDeviceProcAddr(context->device, "vkBindVideoSessionMemoryKHR");
-			Assert(bindVideoSessionMemory);
-			context->api.vkGetVideoSessionMemoryRequirementsKHR = 
-			(vk_get_video_session_memory_requirements*)bindVideoSessionMemory;
-		}
+		PFN_vkVoidFunction bindVideoSessionFunc = vkGetDeviceProcAddr(context->device, 
+																	  "vkBindVideoSessionMemoryKHR");
+		Assert(bindVideoSessionFunc);
+		context->api.vkBindVideoSessionMemoryKHR = (vk_khr_bind_video_session_memory*)bindVideoSessionFunc;
+		
+		PFN_vkVoidFunction getPhysicalDeviceVideoCapabilities = 
+			vkGetInstanceProcAddr(context->instance, "vkGetPhysicalDeviceVideoCapabilitiesKHR");
+		Assert(getPhysicalDeviceVideoCapabilities);
+		context->api.vkGetPhysicalDeviceVideoCapabilitiesKHR = 
+		(vk_get_physical_device_video_capabilities*)getPhysicalDeviceVideoCapabilities;
+		
+		PFN_vkVoidFunction getPhysicalDeviceVideoFormat = 
+			vkGetInstanceProcAddr(context->instance, "vkGetPhysicalDeviceVideoFormatPropertiesKHR");
+		Assert(getPhysicalDeviceVideoFormat);
+		context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR = 
+		(vk_get_physical_device_video_format_properties*)getPhysicalDeviceVideoFormat;
+		
+		PFN_vkVoidFunction createVideoSession = vkGetDeviceProcAddr(context->device, "vkCreateVideoSessionKHR");
+		Assert(createVideoSession);
+		context->api.vkCreateVideoSessionKHR = (vk_create_video_session*)createVideoSession;
+		
+		PFN_vkVoidFunction bindVideoSessionMemory = vkGetDeviceProcAddr(context->device, "vkBindVideoSessionMemoryKHR");
+		Assert(bindVideoSessionMemory);
+		context->api.vkGetVideoSessionMemoryRequirementsKHR = 
+		(vk_get_video_session_memory_requirements*)bindVideoSessionMemory;
 	}
 }
 
@@ -448,7 +454,7 @@ CreateSwapchain(vk_render_context *context)
 		vk_per_frame *frame = &context->perFrame[imageIndex];
 		
 		frame->backbuffer = images[imageIndex];
-			
+		
 		VkFenceCreateInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		info.flags = VK_FENCE_CREATE_SIGNALED_BIT;

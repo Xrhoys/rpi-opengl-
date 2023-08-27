@@ -531,10 +531,11 @@ WinMain(HINSTANCE Instance,
 	
 	CreateSwapchain(&renderContext);
 	CreatePipeline(&renderContext, &g_state);
-	
+
+#if 0	
 	{
 		{
-			video_decode_vulkan vulkanDecoder;
+			video_decode_vulkan vulkanDecoder = {};
 			//LoadVideoContext(&decoder, SAMPLE_DATA);
 			LoadVulkanVideoContext(&vulkanDecoder, "data/sample.mp4");
 			
@@ -544,7 +545,8 @@ WinMain(HINSTANCE Instance,
 			//MP4VideoDemuxer(&mp4File);
 		}
 	}
-	
+	#endif
+
 #endif
 	
 	InitApp(&g_state);
