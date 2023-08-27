@@ -1,7 +1,7 @@
 @echo off
 @set OUT_DIR=debug
 @set OUT_EXE=win32_main
-@set VULKAN_PATH=C:\VulkanSDK\1.3.261.0
+@set VULKAN_PATH=C:\VulkanSDK\1.3.250.1
 @set INCLUDES=/I ..\include\  /I .. /I%VULKAN_PATH%/include
 @set SOURCES=../win32_main.cpp
 @set LIBS=../lib/libEGL.lib ../lib/libGLESv2.lib ../lib/avcodec.lib ../lib/avformat.lib ../lib/avutil.lib ../lib/avdevice.lib ../lib/avfilter.lib User32.lib ../lib/postproc.lib ../lib/swresample.lib ../lib/swscale.lib %VULKAN_PATH%/lib/vulkan-1.lib

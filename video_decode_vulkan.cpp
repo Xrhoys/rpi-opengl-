@@ -145,7 +145,7 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
     profileInfo.lumaBitDepth = VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR; // Check support
     profileInfo.chromaBitDepth = VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR;
 	VkVideoCapabilitiesKHR capabilities;
-	VkResult res = vkGetPhysicalDeviceVideoCapabilitiesKHR(context->physicalDevice, &profileInfo, &capabilities);
+	VkResult res = context->api.vkGetPhysicalDeviceVideoCapabilitiesKHR(context->physicalDevice, &profileInfo, &capabilities);
 	CheckRes(res);
 	
 	VkFormat supportedDpbFormat;
@@ -167,25 +167,25 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 		};
 	
 		u32 supportedFormatCount;
-		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
-														  &supportedFormatCount, nullptr);
+		res = context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+																	   &supportedFormatCount, nullptr);
 		CheckRes(res);
 		Assert(supportedFormatCount > 0);
 		
 		VkVideoFormatPropertiesKHR formatProperties[16];
-		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
-														  &supportedFormatCount, formatProperties);
+		res = context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+																	   &supportedFormatCount, formatProperties);
 		
 		supportedDpbFormat = formatProperties[0].format;
 		
 		videoFormatInfo.imageUsage = VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
-		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
-														  &supportedFormatCount, nullptr);
+		res = context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+																	   &supportedFormatCount, nullptr);
 		CheckRes(res);
 		Assert(supportedFormatCount > 0);
 		
-		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
-														  &supportedFormatCount, formatProperties);
+		res = context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+																	   &supportedFormatCount, formatProperties);
 		
 		supportedOutFormat = formatProperties[0].format;
 	}
@@ -223,7 +223,7 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 		}break;
 	}
 	
-	VkResult result = vkCreateVideoSessionKHR(context->device, &createInfo, nullptr, &session);
+	VkResult result = context->api.vkCreateVideoSessionKHR(context->device, &createInfo, nullptr, &session);
 	if(result != VK_SUCCESS)
 	{
 		return result;
@@ -232,13 +232,12 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 	u32 memoryRequirementCount;
 	VkVideoSessionMemoryRequirementsKHR memoryRequirements[MAX_BOUND_MEMORY];
 	
-	result = vkGetVideoSessionMemoryRequirementsKHR(context->device, session, 
-													&memoryRequirementCount, NULL);
+	result = context->api.vkGetVideoSessionMemoryRequirementsKHR(context->device, session, &memoryRequirementCount, NULL);
 	CheckRes(result);
 	Assert(memoryRequirementCount <= MAX_BOUND_MEMORY);
 	
-	result = vkGetVideoSessionMemoryRequirementsKHR(context->device, session, 
-													&memoryRequirementCount, memoryRequirements);
+	result = context->api.vkGetVideoSessionMemoryRequirementsKHR(context->device, session, 
+																 &memoryRequirementCount, memoryRequirements);
 	CheckRes(result);
 	
 	// Continue to allocate resources after creating video session: VulkanVideoSession.cpp: l.94
@@ -283,7 +282,8 @@ InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
         decodeSessionBindMemory[index].memorySize = memoryRequirements[index].memoryRequirements.size;
 	}
 	
-	result = vkBindVideoSessionMemoryKHR(context->device, session, decodeSessionBindMemoryCount, decodeSessionBindMemory);
+	result = context->api.vkBindVideoSessionMemoryKHR(context->device, session, decodeSessionBindMemoryCount, 
+													  decodeSessionBindMemory);
 	if(result != VK_SUCCESS)
 	{
 		return result;

@@ -12,6 +12,49 @@
 // NOTE(Ecy): do we need a check return instead?
 #define CheckRes(name) Assert(name == VK_SUCCESS)
 
+#define VK_KHR_BIND_VIDEO_SESSION_MEMORY(name) VkResult name(                                  \
+VkDevice                                    device, \
+VkVideoSessionKHR                           videoSession, \
+uint32_t                                    bindSessionMemoryInfoCount, \
+const VkBindVideoSessionMemoryInfoKHR*      pBindSessionMemoryInfos)
+typedef VK_KHR_BIND_VIDEO_SESSION_MEMORY(vk_khr_bind_video_session_memory);
+
+#define VK_GET_PHYSICAL_DEVICE_VIDEO_CAPABILITIES(name) VkResult name(\
+VkPhysicalDevice                            physicalDevice,\
+const VkVideoProfileInfoKHR*                pVideoProfile,\
+VkVideoCapabilitiesKHR*                     pCapabilities)
+typedef VK_GET_PHYSICAL_DEVICE_VIDEO_CAPABILITIES(vk_get_physical_device_video_capabilities);
+
+#define VK_GET_PHYSICAL_DEVICE_VIDEO_FORMAT_PROPERTIES(name) VkResult name(                                                   \
+VkPhysicalDevice                            physicalDevice,      \
+const VkPhysicalDeviceVideoFormatInfoKHR*   pVideoFormatInfo,    \
+uint32_t*                                   pVideoFormatPropertyCount,\
+VkVideoFormatPropertiesKHR*                 pVideoFormatProperties)
+typedef VK_GET_PHYSICAL_DEVICE_VIDEO_FORMAT_PROPERTIES(vk_get_physical_device_video_format_properties);
+
+#define VK_CREATE_VIDEO_SESSION(name) VkResult name(\
+VkDevice                                    device,\
+const VkVideoSessionCreateInfoKHR*          pCreateInfo,\
+const VkAllocationCallbacks*                pAllocator,\
+VkVideoSessionKHR*                          pVideoSession)
+typedef VK_CREATE_VIDEO_SESSION(vk_create_video_session);
+
+#define VK_GET_VIDEO_SESSION_MEMORY_REQUIREMENTS(name) VkResult name( \
+VkDevice                                    device, \
+VkVideoSessionKHR                           videoSession, \
+uint32_t*                                   pMemoryRequirementsCount, \
+VkVideoSessionMemoryRequirementsKHR*        pMemoryRequirements);
+typedef VK_GET_VIDEO_SESSION_MEMORY_REQUIREMENTS(vk_get_video_session_memory_requirements);
+
+struct vk_khr_video_interface
+{
+	vk_khr_bind_video_session_memory                   *vkBindVideoSessionMemoryKHR;
+	vk_get_physical_device_video_capabilities          *vkGetPhysicalDeviceVideoCapabilitiesKHR;
+	vk_get_physical_device_video_format_properties     *vkGetPhysicalDeviceVideoFormatPropertiesKHR;
+	vk_create_video_session                            *vkCreateVideoSessionKHR;
+	vk_get_video_session_memory_requirements           *vkGetVideoSessionMemoryRequirementsKHR;
+};
+
 struct vk_per_frame
 {
 	VkFence fence;
@@ -38,6 +81,8 @@ struct semaphore_stack
 
 struct vk_render_context
 {
+	vk_khr_video_interface api;
+	
 	VkInstance            instance;
 	VkPhysicalDevice      physicalDevice;
 	VkDevice              device;

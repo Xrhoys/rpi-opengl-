@@ -189,7 +189,7 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 			VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
 			VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
 			VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
-			VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
+			"VK_KHR_video_queue",
 			VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
 			VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME,
 			VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME,
@@ -267,6 +267,37 @@ CreateDeviceContext(vk_render_context *context, char **extensions, u32 *extensio
 		poolInfo.pPoolSizes = poolSizes;
 		result = vkCreateDescriptorPool(context->device, &poolInfo, nullptr, &context->descriptorPool);
 		CheckRes(result);
+	}
+	
+	// Query additional runtime function
+	{
+		{
+			PFN_vkVoidFunction bindVideoSessionFunc = vkGetDeviceProcAddr(context->device, 
+																		   "vkBindVideoSessionMemoryKHR");
+			Assert(bindVideoSessionFunc);
+			context->api.vkBindVideoSessionMemoryKHR = (vk_khr_bind_video_session_memory*)bindVideoSessionFunc;
+			
+			PFN_vkVoidFunction getPhysicalDeviceVideoCapabilities = 
+				vkGetInstanceProcAddr(context->instance, "vkGetPhysicalDeviceVideoCapabilitiesKHR");
+			Assert(getPhysicalDeviceVideoCapabilities);
+			context->api.vkGetPhysicalDeviceVideoCapabilitiesKHR = 
+			(vk_get_physical_device_video_capabilities*)getPhysicalDeviceVideoCapabilities;
+			
+			PFN_vkVoidFunction getPhysicalDeviceVideoFormat = 
+				vkGetInstanceProcAddr(context->instance, "vkGetPhysicalDeviceVideoFormatPropertiesKHR");
+			Assert(getPhysicalDeviceVideoFormat);
+			context->api.vkGetPhysicalDeviceVideoFormatPropertiesKHR = 
+			(vk_get_physical_device_video_format_properties*)getPhysicalDeviceVideoFormat;
+			
+			PFN_vkVoidFunction createVideoSession = vkGetDeviceProcAddr(context->device, "vkCreateVideoSessionKHR");
+			Assert(createVideoSession);
+			context->api.vkCreateVideoSessionKHR = (vk_create_video_session*)createVideoSession;
+
+			PFN_vkVoidFunction bindVideoSessionMemory = vkGetDeviceProcAddr(context->device, "vkBindVideoSessionMemoryKHR");
+			Assert(bindVideoSessionMemory);
+			context->api.vkGetVideoSessionMemoryRequirementsKHR = 
+			(vk_get_video_session_memory_requirements*)bindVideoSessionMemory;
+		}
 	}
 }
 
