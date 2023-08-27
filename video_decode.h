@@ -20,13 +20,18 @@ extern "C" {
 }
 #endif
 
+struct video_decode_frame
+{
+	i64 frameCount;
+	i64 displayTime;
+	i64 startTime;
+};
+
 struct video_decode
 {
 	b32               isLoaded;
 
-#ifdef BE_SOFTWARE	
 	struct SwsContext *swsCtx;
-#endif
 
 	i32             streamIndex;
 	AVFormatContext *formatContext;

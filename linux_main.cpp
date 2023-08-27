@@ -557,9 +557,6 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 	}
-	
-	CreateSwapchain(&renderContext);
-	CreatePipeline(&renderContext, &g_state);
 #endif
 	
 	InitApp(&g_state);

@@ -37,38 +37,174 @@ VkVideoSessionKHR session;
 
 VkDeviceMemory memoryBound[MAX_BOUND_MEMORY];
 
+internal void
+DecodeVideo()
+{
+	// 1 - OUTSIDE OF decoding loop
+	//     Create video_decode_frame array (frame buffer count = 10), initialize frame index = 0
+	
+	
+}
+
+internal void
+LoadVulkanVideoContext(video_decode_vulkan *decoder, char *filename)
+{
+	if(avformat_open_input(&decoder->formatContext, filename, NULL, 0) != 0)
+	{
+		// Couldn't open file
+		return;
+	}
+	
+	if(avformat_find_stream_info(decoder->formatContext, NULL) < 0)
+	{
+		// Couldn't find stream information
+		return;
+	}
+	
+	AVCodecParameters *pCodecParam = NULL;
+	
+	decoder->streamIndex = -1;
+	for(u32 index = 0;
+		index < decoder->formatContext->nb_streams;
+		++index)
+	{
+		AVCodecParameters *pLocalCodecParameters = decoder->formatContext->streams[index]->codecpar;
+		const AVCodec *pLocalCodec = avcodec_find_decoder(pLocalCodecParameters->codec_id);
+		
+		if(pLocalCodecParameters->codec_type == AVMEDIA_TYPE_VIDEO)
+		{
+			decoder->streamIndex = index;
+			decoder->codec = (AVCodec*)pLocalCodec;
+			pCodecParam = pLocalCodecParameters;
+			break;
+		}
+	}
+	if(decoder->streamIndex == -1)
+	{
+		// NO video stream found.
+		return;
+	}
+	
+	decoder->codecContext = avcodec_alloc_context3(decoder->codec);
+	
+	if(decoder->codecContext == NULL)
+	{
+		// Copy context failed
+		return;
+	}
+	
+	if(avcodec_parameters_to_context(decoder->codecContext, pCodecParam) < 0)
+	{
+		// Copy context failed
+		return;
+	}
+	
+	if(avcodec_open2(decoder->codecContext, decoder->codec, NULL) < 0)
+	{
+		// Could not open codec
+		return;
+	}
+	
+	decoder->pFrame    = av_frame_alloc();
+	decoder->packet    = av_packet_alloc();
+	
+	//auto descriptor = av_pix_fmt_desc_get(AV_PIX_FMT_NV12);
+	
+	decoder->isLoaded = true;
+}
+
 // TODO(Ecy): refer to VulkanVideoParser.h from the nvidia decoder sample code
 internal void
 DetectVideoFormat()
 {
 	//VkParserDetectedVideoFormat detectedFormat;
+}
+
+internal VkResult
+GetSupportedVideoFormats(vk_render_context *context, video_decode_vulkan *decoder)
+{
+	VkResult res = VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR;
 	
 	
 }
 
-inline VkResult
-InitVideoDecoder(vk_render_context *context, VulkanVideoSession *videoSession)
+internal VkResult
+InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 {
-	VkExtent2D maxCodedExtent = {};
+	if(decoder->codec->id & (AV_CODEC_ID_H264 | AV_CODEC_ID_H265) == 0)
+	{
+		// Unsupported decoding format
+		return VK_ERROR_FORMAT_NOT_SUPPORTED;
+	}
 	
+	// Get video capabilities
 	VkVideoProfileInfoKHR profileInfo = {};
 	profileInfo.sType = VK_STRUCTURE_TYPE_VIDEO_PROFILE_INFO_KHR;
 	profileInfo.videoCodecOperation = VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR;
     profileInfo.chromaSubsampling = VK_VIDEO_CHROMA_SUBSAMPLING_420_BIT_KHR; // Check support
     profileInfo.lumaBitDepth = VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR; // Check support
     profileInfo.chromaBitDepth = VK_VIDEO_COMPONENT_BIT_DEPTH_8_BIT_KHR;
+	VkVideoCapabilitiesKHR capabilities;
+	VkResult res = vkGetPhysicalDeviceVideoCapabilitiesKHR(context->physicalDevice, &profileInfo, &capabilities);
+	CheckRes(res);
+	
+	VkFormat supportedDpbFormat;
+	VkFormat supportedOutFormat;
+	{
+		// Get video format properties
+		VkVideoProfileListInfoKHR videoProfiles = 
+		{ 
+			VK_STRUCTURE_TYPE_VIDEO_PROFILE_LIST_INFO_KHR, 
+			nullptr, 
+			1, 
+			&profileInfo,
+		};
+		VkPhysicalDeviceVideoFormatInfoKHR videoFormatInfo = 
+		{
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_FORMAT_INFO_KHR,
+			&videoProfiles,
+			VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR,
+		};
+	
+		u32 supportedFormatCount;
+		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+														  &supportedFormatCount, nullptr);
+		CheckRes(res);
+		Assert(supportedFormatCount > 0);
+		
+		VkVideoFormatPropertiesKHR formatProperties[16];
+		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+														  &supportedFormatCount, formatProperties);
+		
+		supportedDpbFormat = formatProperties[0].format;
+		
+		videoFormatInfo.imageUsage = VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
+		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+														  &supportedFormatCount, nullptr);
+		CheckRes(res);
+		Assert(supportedFormatCount > 0);
+		
+		res = vkGetPhysicalDeviceVideoFormatPropertiesKHR(context->physicalDevice, &videoFormatInfo, 
+														  &supportedFormatCount, formatProperties);
+		
+		supportedOutFormat = formatProperties[0].format;
+	}
+	
+	VkExtent2D maxCodedExtent = {};
+	maxCodedExtent.width = capabilities.minCodedExtent.width;
+	maxCodedExtent.height = capabilities.minCodedExtent.height;
 	
 	VkVideoSessionCreateInfoKHR createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_VIDEO_SESSION_CREATE_INFO_KHR;
 	createInfo.pVideoProfile = &profileInfo;
     createInfo.queueFamilyIndex = context->queueFamily; // Careful, is this main render or secondary render
-    //createInfo.pictureFormat = pictureFormat;
-    createInfo.maxCodedExtent = context->extent; // Is this the right choice?
-    //createInfo.maxDpbSlots = maxReferencePicturesSlotsCount;
-    //createInfo.maxActiveReferencePictures = maxReferencePicturesActiveCount;
-
-#if 0	
-	switch(pictureFormat)
+    createInfo.pictureFormat = supportedOutFormat;
+    createInfo.maxCodedExtent = maxCodedExtent;
+    createInfo.maxDpbSlots = 16; // seems to be the maxiumum settable
+    createInfo.maxActiveReferencePictures = 16;
+	createInfo.referencePictureFormat = supportedDpbFormat;
+	
+	switch(supportedOutFormat)
 	{
 		case VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR:
 		{
@@ -86,8 +222,7 @@ InitVideoDecoder(vk_render_context *context, VulkanVideoSession *videoSession)
 			Assert(false);
 		}break;
 	}
-#endif
-
+	
 	VkResult result = vkCreateVideoSessionKHR(context->device, &createInfo, nullptr, &session);
 	if(result != VK_SUCCESS)
 	{

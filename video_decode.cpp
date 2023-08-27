@@ -199,6 +199,17 @@ Decode(video_decode *decoder)
 							0, decoder->pFrame->height,
 							(u8 *const *)decoder->pFrameRGB->data, decoder->pFrameRGB->linesize);
 		}
+#eflif BE_VULKAN
+		if(ret >= 0)
+		{
+			// Vulkan decoding process:
+			// 2 - Decoding: get frame data from index, set decodedFrame *lastDecodedFrame = null
+			// 3 - if lastDecodedFrame != null, and queryPool of the frame not null => vkGetQueryPoolResults
+			// 4 - else test lastDecodedFrame->frameCompleteFence different VkFence, wait for fence then get fence status
+			// 5 - after 3 and 4, release currently displayedFrame and reset lastDecodedFrame
+			// 6 - compute numVideoFrames from GetNextFrame() and test if needs to stop decoding or not
+			// 7 - DrawFrame()
+		}
 #endif
     }
 }

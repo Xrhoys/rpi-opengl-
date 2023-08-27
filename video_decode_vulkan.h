@@ -13,6 +13,19 @@
 
 #define MAX_BOUND_MEMORY 8
 
+struct video_decode_vulkan
+{
+	b32             isLoaded;
+	
+	i32             streamIndex;
+	AVFormatContext *formatContext;
+	AVCodec         *codec;
+	AVCodecContext  *codecContext;
+	
+	AVFrame         *pFrame;
+	AVPacket        *packet;
+};
+
 struct VulkanVideoSession
 {
 	char *filename;
