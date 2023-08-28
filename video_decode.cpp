@@ -1,6 +1,11 @@
 #include "video_decode.h"
 
-#if 0
+internal void
+ParseH265Stream(u8 *stream)
+{
+	
+}
+
 internal void
 MP4VideoDemuxer(debug_read_file_result *file)
 {
@@ -12,14 +17,14 @@ MP4VideoDemuxer(debug_read_file_result *file)
 		u8 *cursor = boxCursor;
 		u32 boxSize = 0;
 		
-		demux_mp4_box box = {};
+		demux_mp4_box_full_header header = {};
 		
-		box.header.size = _byteSwapU32(*((u32*)cursor));
+		header.size = _byteSwapU32(*((u32*)cursor));
 		cursor += sizeof(u32);
-		box.header.type = *((u32*)cursor);
+		header.type = *((u32*)cursor);
 		cursor += sizeof(u32);
 		
-		switch(box.header.size)
+		switch(header.size)
 		{
 			case 0:
 			{
@@ -30,22 +35,23 @@ MP4VideoDemuxer(debug_read_file_result *file)
 			case 1:
 			{
 				// NOTE(Ecy): Large size is read instead
-				box.largesize = _byteSwapU64(*((u64*)cursor));
+				header.largesize = _byteSwapU64(*((u64*)cursor));
 				cursor += sizeof(u64);
 				
-				boxSize = box.largesize;
+				boxSize = header.largesize;
 			}break;
 			
 			default: 
 			{
-				boxSize = box.header.size;
+				boxSize = header.size;
 			}break;
 		}
 		
-		switch(box.header.type)
+		switch(header.type)
 		{
 			case DEMUX_MP4_BOX_FTYP:
 			{
+				demux_mp4_box_ftyp box = {};
 				box.majorBrand = *((u32*)cursor);
 				cursor += sizeof(u32);
 				box.minorVersion = _byteSwapU32(*((u32*)cursor));
@@ -69,7 +75,6 @@ MP4VideoDemuxer(debug_read_file_result *file)
 		boxCursor += boxSize;
 	}
 }
-#endif
 
 // NOTE(Ecy): return type is temporary
 internal void

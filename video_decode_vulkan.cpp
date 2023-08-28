@@ -135,7 +135,7 @@ DetectVideoFormat()
 	//VkParserDetectedVideoFormat detectedFormat;
 }
 
-internal VkResult
+internal void
 GetSupportedVideoFormats(vk_render_context *context, video_decode_vulkan *decoder)
 {
 	VkResult res = VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR;
@@ -146,10 +146,15 @@ GetSupportedVideoFormats(vk_render_context *context, video_decode_vulkan *decode
 internal VkResult
 InitVideoDecoder(vk_render_context *context, video_decode_vulkan *decoder)
 {
-	if(decoder->codec->id & (AV_CODEC_ID_H264 | AV_CODEC_ID_H265) == 0)
+	if(decoder->codec->id & (AV_CODEC_ID_H265) == 0)
 	{
 		// Unsupported decoding format
 		return VK_ERROR_FORMAT_NOT_SUPPORTED;
+	}
+	
+	{
+		// First extract the stream itself
+		
 	}
 	
 	// Get video capabilities
