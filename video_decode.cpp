@@ -3,7 +3,45 @@
 internal void
 ParseH265Stream(u8 *stream)
 {
-	
+		
+}
+
+internal u32
+ParseTrak(demux_mp4_box_trak *box, u8 *cursor)
+{
+	cursor += ParseDemuxMP4Header(, cursor);
+	u8 *end = cursor + box->size;
+
+	return end - cursor;
+}
+
+internal u32
+ParseMOOV(demux_mp4_box_moov *box, u8 *cursor)
+{
+	cursor += ParseDemuxMP4Header(&box->header, cursor);
+
+	u8 *end = cursor + box->size;
+
+	while(cursor > end)
+	{
+		switch(box->header.type)
+		{
+			case DEMUX_MP4_BOX_MVHD:
+			{
+				// cursor += ParseDemuxMP4HeaderFull(&box->mvhd.header, cursor);
+			}break;
+			case DEMUX_MP4_BOX_TRAK:
+			{
+				cursor += ParseTrak(&box->trak[box->trakCount++], cursor);
+			}break;
+			default:
+			{
+
+			}break;
+		}
+	}
+
+	return end - cursor;
 }
 
 internal void
@@ -18,11 +56,7 @@ MP4VideoDemuxer(debug_read_file_result *file)
 		u32 boxSize = 0;
 		
 		demux_mp4_box_full_header header = {};
-		
-		header.size = _byteSwapU32(*((u32*)cursor));
-		cursor += sizeof(u32);
-		header.type = *((u32*)cursor);
-		cursor += sizeof(u32);
+		cursor += ParseDemuxMP4HeaderFull(&header, cursor);
 		
 		switch(header.size)
 		{
@@ -63,7 +97,8 @@ MP4VideoDemuxer(debug_read_file_result *file)
 			
 			case DEMUX_MP4_BOX_MOOV:
 			{
-				
+				demux_mp4_box_moov box = {};
+				cursor += ParseMOOV(&box, cursor);
 			}break;
 			
 			default:

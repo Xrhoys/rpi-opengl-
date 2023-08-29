@@ -241,7 +241,10 @@ struct demux_mp4_box_header
 	u32 type;
 	
 	u64 largesize;
-	char userType[16];
+	u8  userType[16];
+
+	// Other data 
+	b32 isLast;
 };
 
 struct demux_mp4_box_full_header
@@ -250,10 +253,13 @@ struct demux_mp4_box_full_header
 	u32 type;
 	
 	u64 largesize;
-	char userType[16];
+	u8  userType[16];
 	
 	u32 version;
 	u8  flags[3];
+
+	// Other data 
+	b32 isLast;
 };
 
 struct demux_mp4_box_ftyp
@@ -365,35 +371,122 @@ struct demux_mp4_box_hdlr
 	u32  nameSize;
 };
 
+struct demux_mp4_box_vmhd
+{
+	demux_mp4_box_full_header header;
+	
+	u16 graphicsMode;
+	u16 opColor[3];
+};
+
+struct demux_mp4_box_smhd
+{
+	demux_mp4_box_full_header header;
+	
+	u16 balance;
+	u16 reserved;
+};
+
+struct demux_mp4_box_hmhd
+{
+	demux_mp4_box_full_header header;
+	
+	u16 maxPDUsize;
+	u16 avgPDUsize;
+	u32 maxbitrate;
+	u32 avgbitrate;
+	u32 reserved;
+};
+
+struct demux_mp4_box_sthd
+{
+	// skip no data
+};
+
+struct demux_mp4_box_nmhd
+{
+	// skip no data
+};
+
+enum demux_mp4_box_dref_type
+{
+	DEMUX_MP4_BOX_DREF_URL,
+	DEMUX_MP4_BOX_DREF_URN,
+};
+
+struct demux_mp4_box_dref_box
+{
+	demux_mp4_box_dref_type type;
+
+	char *name;
+	char *information;
+};
+
+struct demux_mp4_box_dref
+{
+	demux_mp4_box_full_header header;
+	
+	demux_mp4_box_dref_box *boxes;
+	u32 boxCount;
+};
+
+struct demux_mp4_box_dinf
+{
+	demux_mp4_box_header header;
+
+	demux_mp4_box_dref dref;
+};
+
 struct demux_mp4_box_minf
 {
-	// ...
+	demux_mp4_box_header header;
+
+	demux_mp4_box_vmhd vmhd;
+	demux_mp4_box_smhd smhd;
+	demux_mp4_box_hmhd hmhd;
+	demux_mp4_box_sthd sthd;
+	demux_mp4_box_nmhd nmhd;
+	demux_mp4_box_dinf dinf;
+	
+};
+
+struct demux_mp4_box_elng
+{
+
+};
+
+struct demux_mp4_box_stbl
+{
+
 };
 
 struct demux_mp4_box_mdia
 {
 	demux_mp4_box_mdhd mdhd;
+	demux_mp4_box_hdlr hdlr;
+	demux_mp4_box_elng elng;
 	demux_mp4_box_minf minf;
+	demux_mp4_box_stbl stbl;
 };
 
 struct demux_mp4_box_trak
 {
+	demux_mp4_box_header header;
+
 	demux_mp4_box_tkhd tkhd;
 	demux_mp4_box_tref tref;
 	demux_mp4_box_trgr trgr;
 	demux_mp4_box_mdia mdia;
-	demux_mp4_box_hdlr hdlr;
 };
 
 struct demux_mp4_box_moov
 {
+	demux_mp4_box_header header;
+
 	// MOOV
 	demux_mp4_box_mvhd mvhd;
-	demux_mp4_box_trak *trak;
+	demux_mp4_box_trak trak[16];
 	u32                trakCount;
-	
-	
-	char *data;
 };
 
 #endif //VIDEO_DECODE_H
