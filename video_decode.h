@@ -3,6 +3,8 @@
 #ifndef VIDEO_DECODE_H
 #define VIDEO_DECODE_H
 
+#include <utils.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -414,12 +416,18 @@ enum demux_mp4_box_dref_type
 	DEMUX_MP4_BOX_DREF_URN,
 };
 
+struct demux_mp4_box_dref_entry
+{
+	char *name;
+	char *information;
+};
+
 struct demux_mp4_box_dref_box
 {
 	demux_mp4_box_dref_type type;
-
-	char *name;
-	char *information;
+	
+	u32 entryCount;
+	demux_mp4_box_dref_entry dataEntries[32];
 };
 
 struct demux_mp4_box_dref
@@ -434,7 +442,8 @@ struct demux_mp4_box_dinf
 {
 	demux_mp4_box_header header;
 
-	demux_mp4_box_dref dref;
+	demux_mp4_box_dref dref[16];
+	u32 boxCount;
 };
 
 struct demux_mp4_box_minf
@@ -462,6 +471,8 @@ struct demux_mp4_box_stbl
 
 struct demux_mp4_box_mdia
 {
+	demux_mp4_box_header header;
+	
 	demux_mp4_box_mdhd mdhd;
 	demux_mp4_box_hdlr hdlr;
 	demux_mp4_box_elng elng;
@@ -488,5 +499,59 @@ struct demux_mp4_box_moov
 	demux_mp4_box_trak trak[16];
 	u32                trakCount;
 };
+
+// NOTE(Ecy): always use largesize
+inline u32
+ParseDemuxMP4Header(demux_mp4_box_header *header, u8 *data)
+{
+	u8 *cursor = data;
+	header->size = _byteSwapU32(*cursor);
+	cursor += sizeof(header->size);
+	header->type = *((u32*)cursor);
+	cursor += sizeof(header->type);
+	
+	if(header->size == 1)  
+	{
+		header->largesize = _byteSwapU64(*((u64*)cursor));
+		cursor += sizeof(header->largesize);
+	}
+	else if(header->size == 0)
+	{
+		header->isLast = true;
+	}
+	
+	if(header->type == *((u32*)"uuid"))
+	{
+		memcpy(header->userType, cursor, sizeof(header->userType));
+		cursor += sizeof(header->userType);
+	}
+	
+	return cursor - data;
+}
+
+inline u32
+ParseDemuxMP4HeaderFull(demux_mp4_box_full_header *header, u8 *data)
+{
+	u8 *cursor = data;
+	demux_mp4_box_header subHeader = {};
+	cursor += ParseDemuxMP4Header(&subHeader, cursor);
+	
+	header->size = subHeader.size;
+	header->type = subHeader.type;
+	header->largesize = subHeader.largesize;
+	
+	memcpy(header->userType, subHeader.userType, sizeof(subHeader.userType));
+	cursor += sizeof(subHeader.userType);
+	
+	header->isLast = subHeader.isLast;
+	
+	header->version = _byteSwapU32(*cursor);
+	cursor += sizeof(header->version);
+	
+	memcpy(cursor, header->flags, sizeof(header->flags));
+	cursor += sizeof(header->flags);
+	
+	return cursor - data;
+}
 
 #endif //VIDEO_DECODE_H

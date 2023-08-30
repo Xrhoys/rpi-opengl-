@@ -7,41 +7,96 @@ ParseH265Stream(u8 *stream)
 }
 
 internal u32
+ParseDinf(demux_mp4_box_dinf *dinf, u8 *cursor)
+{
+	demux_mp4_box_header header = {};
+	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
+	u8 *end = cursor + header.size;
+
+#if 0	
+	cursor += headerSize;
+	
+	while(cursor < end)
+	{
+		demux_mp4_box_dref *dref = &box->dref[box->boxCount++];
+		headerSize = ParseDemuxMP4HeaderFull(&dref->header, cursor);
+		
+		cursor += headerSize;
+		
+		dref->entryCount = _byteSwapU32(cursor);
+		cursor += sizeof(u32);
+		
+		for(u32 index = 0;
+			index < dref->entryCount;
+			++index)
+		{
+			// 
+		}
+	}
+#endif
+	
+	return end - cursor;
+}
+
+internal u32
 ParseMinf(demux_mp4_box_minf *box, u8 *cursor) 
 {
 	demux_mp4_box_header header = {};
-	cursor += ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + box->size;
-
-	switch(header.type)
+	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
+	u8 *end = cursor + header.size;
+	
+	cursor += headerSize;
+	
+	while(cursor < end)
 	{
-		case DEMUX_MP4_BOX_VMHD:
+		switch(header.type)
 		{
-
-		}break;
-		case DEMUX_MP4_BOX_SMHD:
-		{
-
-		}break;
-		case DEMUX_MP4_BOX_HMHD:
-		{
-
-		}break;
-		case DEMUX_MP4_BOX_STHD:
-		{
-			
-		}break;
-		case DEMUX_MP4_BOX_NMHD:
-		{
-
-		}break;
-		case DEMUX_MP4_BOX_DINF:
-		{
-
-		}break;
-		default: break;
+			case DEMUX_MP4_BOX_VMHD:
+			{
+				memcpy(&box->vmhd.header, &header, sizeof(header));
+				
+				box->vmhd.graphicsMode = *(u16*)cursor++;
+				memcpy(&box->vmhd.opColor, &cursor, sizeof(box->vmhd.opColor));
+			}break;
+			case DEMUX_MP4_BOX_SMHD:
+			{
+				memcpy(&box->smhd.header, &header, sizeof(header));
+				
+				box->smhd.balance = *(u16*)cursor;
+				cursor += sizeof(u32);
+			}break;
+			case DEMUX_MP4_BOX_HMHD:
+			{
+				memcpy(&box->hmhd.header, &header, sizeof(header));
+				
+				box->hmhd.maxPDUsize = *(u16*)cursor++;
+				box->hmhd.avgPDUsize = *(u16*)cursor++;
+				box->hmhd.maxbitrate = *(u32*)cursor++;
+				box->hmhd.avgbitrate = *(u32*)cursor++;
+			}break;
+			case DEMUX_MP4_BOX_STHD:
+			{
+				memcpy(&box->hmhd.header, &header, sizeof(header));
+				
+				cursor += box->hmhd.header.size;
+			}break;
+			case DEMUX_MP4_BOX_NMHD:
+			{
+				//memcpy(&box->nmhd.header, &header, sizeof(header));
+				
+				cursor += header.size;
+			}break;
+			case DEMUX_MP4_BOX_DINF:
+			{
+				box->dinf.header = header;
+				
+				cursor += ParseDinf(&box->dinf, cursor);
+			}break;
+			default: break;
+		}
+		
 	}
-
+	
 	return end - cursor;
 }
 
@@ -49,9 +104,11 @@ internal u32
 ParseMdia(demux_mp4_box_mdia *box, u8 *cursor) 
 {
 	demux_mp4_box_header header = {};
-	cursor += ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + box->size;
-
+	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
+	u8 *end = cursor + header.size;
+	
+	cursor += headerSize;
+	
 	switch(header.type)
 	{
 		case DEMUX_MP4_BOX_MDHD:
@@ -74,7 +131,7 @@ ParseMdia(demux_mp4_box_mdia *box, u8 *cursor)
 		}break;
 		case DEMUX_MP4_BOX_STBL:
 		{
-
+			// THE MOST IMPORTANT METADATA!
 		}break;
 		default: break;
 	}
@@ -86,9 +143,11 @@ internal u32
 ParseTrak(demux_mp4_box_trak *box, u8 *cursor)
 {
 	demux_mp4_box_header header = {};
-	cursor += ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + box->size;
-
+	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
+	u8 *end = cursor + header.size;
+	
+	cursor += headerSize;
+	
 	while(cursor > end) 
 	{
 		switch(header.type)
@@ -126,10 +185,11 @@ internal u32
 ParseMOOV(demux_mp4_box_moov *box, u8 *cursor)
 {
 	demux_mp4_box_header header = {};
-	cursor += ParseDemuxMP4Header(&header, cursor);
-
-	u8 *end = cursor + box->size;
-
+	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
+	u8 *end = cursor + header.size;
+	
+	cursor += headerSize;
+	
 	while(cursor > end)
 	{
 		switch(header.type)
@@ -143,7 +203,7 @@ ParseMOOV(demux_mp4_box_moov *box, u8 *cursor)
 				demux_mp4_box_trak *trak = &box->trak[box->trakCount++];
 				trak->header = header;
 
-				cursor += ParseTrak(&trak, cursor);
+				cursor += ParseTrak(trak, cursor);
 			}break;
 			default:
 			{
@@ -209,7 +269,7 @@ MP4VideoDemuxer(debug_read_file_result *file)
 			case DEMUX_MP4_BOX_MOOV:
 			{
 				demux_mp4_box_moov box = {};
-				memcpy(box.header, &header, sizeof(header));
+				memcpy(&box.header, &header, sizeof(header));
 
 				cursor += ParseMOOV(&box, cursor);
 			}break;
