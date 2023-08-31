@@ -466,7 +466,26 @@ struct demux_mp4_box_elng
 
 struct demux_mp4_box_stbl
 {
+	demux_mp4_box_header header;
 
+#if 0	
+	demux_mp4_box_stsd stsd;
+	demux_mp4_box_stts stts;
+	demux_mp4_box_ctts ctts;
+	demux_mp4_box_cslg cslg;
+	demux_mp4_box_stsc stsc;
+	demux_mp4_box_stsz stsz;
+	demux_mp4_box_stz2 stz2;
+	demux_mp4_box_stco co64;
+	demux_mp4_box_stss stss;
+	demux_mp4_box_stsh stsh;
+	demux_mp4_box_stts stts;
+	demux_mp4_box_padb padb;
+#endif
+
+	
+	
+	
 };
 
 struct demux_mp4_box_mdia

@@ -1,12 +1,14 @@
 #include "platform.h"
 
-#include "video_decode.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
 #define STB_TRUETYPE_IMPLEMENTATION 1
 #include "stb_truetype.h"
+
+#define MINIMP4_IMPLEMENTATION
+#define MP4D_HEVC_SUPPORTED 1
+#include "minimp4.h"
 
 #include "asset_build.h"
 
@@ -298,16 +300,69 @@ int main()
 	}
 	
 	{
-		u32 output[DEMUX_MP4_BOX_COUNT];
-		// Generate u32 integer for mp4 box types
+		debug_read_file_result file = ReadEntireFile(NULL, "data/sample.mp4");
+		
+		u8 *input_buf = (u8*)file.contents;
+		
+		MP4D_demux_t mp4 = {};
+		i32 i, spspps_bytes;
+		
+		u8 *spspps;
+		
+		INPUT_BUFFER buf = { (u8*)file.contents, file.contentSize };
+		MP4D_open(&mp4, read_callback, &buf, file.contentSize);
+		
 		for(u32 index = 0;
-			index < DEMUX_MP4_BOX_COUNT;
+			index < mp4.track_count;
 			++index)
 		{
-			output[index] = *((u32*)demux_mp4_box_codes[index]);
+			MP4D_track_t *tr = mp4.track + index;
+			u32 sum_duration = 0;
+			i = 0;
+			if (tr->handler_type == MP4D_HANDLER_TYPE_VIDE)
+			{   // assume h264
+#define USE_SHORT_SYNC 0
+				char sync[4] = { 0, 0, 0, 1 };
+				while (spspps = (u8*)MP4D_read_sps(&mp4, index, i, &spspps_bytes))
+				{
+					//fwrite(sync + USE_SHORT_SYNC, 1, 4 - USE_SHORT_SYNC, fout);
+					//fwrite(spspps, 1, spspps_bytes, fout);
+					i++;
+				}
+				i = 0;
+				while (spspps = (u8*)MP4D_read_pps(&mp4, index, i, &spspps_bytes))
+				{
+					//fwrite(sync + USE_SHORT_SYNC, 1, 4 - USE_SHORT_SYNC, fout);
+					//fwrite(spspps, 1, spspps_bytes, fout);
+					i++;
+				}
+				for (i = 0; i < mp4.track[index].sample_count; i++)
+				{
+					u32 frame_bytes, timestamp, duration;
+					MP4D_file_offset_t ofs = MP4D_frame_offset(&mp4, index, i, &frame_bytes, &timestamp, &duration);
+					u8 *mem = input_buf + ofs;
+					sum_duration += duration;
+					while (frame_bytes)
+					{
+						u32 size = ((u32)mem[0] << 24) | ((u32)mem[1] << 16) | ((u32)mem[2] << 8) | mem[3];
+						size += 4;
+						mem[0] = 0; 
+						mem[1] = 0; 
+						mem[2] = 0; 
+						mem[3] = 1;
+						//fwrite(mem + USE_SHORT_SYNC, 1, size - USE_SHORT_SYNC, fout);
+						if (frame_bytes < size)
+						{
+							printf("error: demux sample failed\n");
+							exit(1);
+						}
+						
+						frame_bytes -= size;
+						mem += size;
+					}
+				}
+			}
 		}
-		
-		int b = 0;
 	}
 }
 
