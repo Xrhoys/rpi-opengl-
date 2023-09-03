@@ -50,6 +50,13 @@ LinearAlloc(memory_arena *arena, u32 size)
 }
 
 inline u32
+_byteSwapU16(u16 b)
+{
+	return _byteswap_ushort(b);
+	//return bswap_16(b);
+}
+
+inline u32
 _byteSwapU32(u32 b)
 {
 	return _byteswap_ulong(b);

@@ -6,6 +6,9 @@
 #define STB_TRUETYPE_IMPLEMENTATION 1
 #include "stb_truetype.h"
 
+#include "utils.h"
+#include "video_decode.h"
+
 #define MINIMP4_IMPLEMENTATION
 #define MP4D_HEVC_SUPPORTED 1
 #include "minimp4.h"
@@ -189,6 +192,248 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(WriteEntireFile)
 
 #endif
 
+static void
+ParseDemuxMP4(u8 **start, u8 *end)
+{
+	u8 *cursor = *start;
+	
+	demux_mp4_box_header header = {};
+	ParseDemuxMP4Header(&header, cursor);
+	
+	switch(header.type)
+	{
+		case DEMUX_MP4_BOX_MOOV:
+		{
+			u8 *subCursor = cursor + sizeof(u32) * 2;
+			u8 *subEnd = cursor + header.size;
+			while(subCursor < subEnd)
+			{
+				ParseDemuxMP4(&subCursor, subEnd);
+			}
+		}break;
+		
+		case DEMUX_MP4_BOX_MVHD:
+		{
+			int b = 0;
+		}
+		
+		case DEMUX_MP4_BOX_TRAK:
+		{
+			u8 *subCursor = cursor + sizeof(u32) * 2;
+			u8 *subEnd = cursor + header.size;
+			while(subCursor < subEnd)
+			{
+				ParseDemuxMP4(&subCursor, subEnd);
+			}
+		}break;
+		
+		case DEMUX_MP4_BOX_TKHD:
+		{
+			int b = 0;
+		}break;
+		
+		case DEMUX_MP4_BOX_EDTS:
+		{
+			int b = 0;
+		}break;
+		
+		case DEMUX_MP4_BOX_MDIA:
+		{
+			u8 *subCursor = cursor + sizeof(u32) * 2;
+			u8 *subEnd = cursor + header.size;
+			while(subCursor < subEnd)
+			{
+				ParseDemuxMP4(&subCursor, subEnd);
+			}
+		}break;
+		
+		case DEMUX_MP4_BOX_MDHD:
+		{
+			int b = 0;
+		}break;
+		
+		case DEMUX_MP4_BOX_HDLR:
+		{
+			int b = 0;
+		}break;
+		
+		case DEMUX_MP4_BOX_MINF:
+		{
+			u8 *subCursor = cursor + sizeof(u32) * 2;
+			u8 *subEnd = cursor + header.size;
+			while(subCursor < subEnd)
+			{
+				ParseDemuxMP4(&subCursor, subEnd);
+			}
+		}break;
+		
+		case DEMUX_MP4_BOX_VMHD:
+		{
+			int b = 0;
+		}break;
+		
+		case DEMUX_MP4_BOX_STBL:
+		{
+			u8 *subCursor = cursor + sizeof(u32) * 2;
+			u8 *subEnd = cursor + header.size;
+			while(subCursor < subEnd)
+			{
+				ParseDemuxMP4(&subCursor, subEnd);
+			}
+		}break;
+		
+		// The rest inside stbl
+		case DEMUX_MP4_BOX_STSD:
+		{
+			u8 *subCursor = cursor;
+			
+			demux_mp4_box_full_header fullHeader;
+			u32 offset = ParseDemuxMP4HeaderFull(&fullHeader, cursor);
+			subCursor += offset;			
+			
+			u8 *subEnd = cursor + header.size;
+			
+			u32 entry_size = _byteSwapU32(*(u32*)cursor);
+			subCursor += sizeof(u32);
+			
+			for(u32 index = 0;
+				index < entry_size;
+				++index)
+			{
+				ParseDemuxMP4(&subCursor, subEnd);
+			}
+		}break;
+		
+		case DEMUX_MP4_BOX_HEV1:
+		{
+			demux_mp4_box_hev1 videoBox = {};
+			
+			// NOTE(Ecy): VisualSampleEntry size + header
+			u8 *subCursor = cursor + 2 * sizeof(u32) + 8 + 38 + sizeof(char) * 32;
+			u8 *subEnd = cursor + header.size;
+#if 0			
+			subCursor += 16;
+			videoBox.width = *(i16*)subCursor;
+			videoBox.height = 0;
+			videoBox.horizresolution = 0;
+			videoBox.vertresolution = 0;
+			videoBox.frameCount = 0;
+			videoBox.depth = 0;
+			
+			memcpy(&videoBox.compressorname, 0, sizeof(videoBox.compressorname));
+#endif
+			
+			while(subCursor < subEnd)
+			{
+				ParseDemuxMP4(&subCursor, subEnd);
+			}
+		}break;
+		
+		case DEMUX_MP4_BOX_HVCC:
+		{
+			u8 *subCursor = cursor + 2 * sizeof(u32);
+			u8 *subEnd = cursor + header.size;
+			
+			demux_mp4_box_hvcc box = {};
+			box.header = header;
+			
+			box.configurationVersion = *subCursor++;
+			
+			u8 general = *subCursor++;
+			
+			box.general_profile_space = general >> 6;
+			box.general_tier_flag = (general & 0x4) >> 4;
+			box.general_profile_idc = general & 0x1f;
+			
+			box.general_profile_compatibility_flags = (i32)_byteSwapU32(*(u32*)subCursor);
+			subCursor += sizeof(box.general_profile_compatibility_flags);
+			
+			memcpy(&box.general_constraint_indicator_flags, subCursor, sizeof(box.general_constraint_indicator_flags));
+			subCursor += sizeof(box.general_constraint_indicator_flags);
+			
+			box.general_level_idc = *subCursor++;
+			
+			box.min_spatial_segmentation_idc = (i16)_byteSwapU16(*(u16*)subCursor) & 0xfff; // 12 bits
+			subCursor += sizeof(box.min_spatial_segmentation_idc);
+			
+			box.parallelismType = (*subCursor++) & 0x3;
+			box.chromaFormat = (*subCursor++) & 0x3;
+			box.bitDepthLumaMinus8 = (*subCursor++) & 0x7;
+			box.bitDepthChromaMinus8 = (*subCursor++) & 0x7;
+			
+			box.avgFrameRate = _byteSwapU16(*(u16*)subCursor);
+			subCursor += sizeof(box.avgFrameRate);
+			
+			u8 data = *subCursor++;
+			
+			box.constantFrameRate  = data >> 6;
+			box.numTemporalLayers  = (data & 0x38) >> 3 ;
+			box.temporalIdNested   = (data & 0x4) >> 2;
+			box.lengthSizeMinusOne = data & 0x3;
+			
+			box.numOfArrays = *subCursor++;
+			
+			for(u32 index = 0;
+				index < box.box.numOfArrays;
+				++index)
+			{
+				bit(1) array_completeness;
+				unsigned int(1) reserved = 0;
+				unsigned int(6) NAL_unit_type;
+				unsigned int(16) numNalus;
+				
+				for(u32 nalIndex = 0;
+					nalIndex < numNalus;
+					++nalIndex)
+				{
+					unsigned int(16) nalUnitLength;
+					bit(8*nalUnitLength) nalUnit;
+				}
+			}
+		}break;
+		
+		case DEMUX_MP4_BOX_UDTA:
+		{
+			int b = 0;
+		}break;
+		
+		case DEMUX_MP4_BOX_FTYP:
+		{
+			int b = 0;
+		}break;
+		
+		case DEMUX_MP4_BOX_MDAT:
+		{
+			int b = 0;
+		}break;
+		
+		default:
+		{
+			int b = 0;
+		}break;
+	}
+	
+	switch(header.size)
+	{
+		case 0:
+		{
+			// NOTE(Ecy): last box, size extends until the end of the file
+			*start = end;
+		}break;
+		
+		case 1:
+		{
+			*start += _byteSwapU64(*((u64*)start));
+		}break;
+		
+		default: 
+		{
+			*start += header.size;
+		}break;
+	}
+
+}
+
 int main()
 {
 	// FONT map
@@ -302,67 +547,14 @@ int main()
 	{
 		debug_read_file_result file = ReadEntireFile(NULL, "data/sample.mp4");
 		
-		u8 *input_buf = (u8*)file.contents;
+		u8 *cursor = (u8*)file.contents;
+		u8 *end = (u8*)file.contents + file.contentSize;
 		
-		MP4D_demux_t mp4 = {};
-		i32 i, spspps_bytes;
-		
-		u8 *spspps;
-		
-		INPUT_BUFFER buf = { (u8*)file.contents, file.contentSize };
-		MP4D_open(&mp4, read_callback, &buf, file.contentSize);
-		
-		for(u32 index = 0;
-			index < mp4.track_count;
-			++index)
+		while(cursor < end)
 		{
-			MP4D_track_t *tr = mp4.track + index;
-			u32 sum_duration = 0;
-			i = 0;
-			if (tr->handler_type == MP4D_HANDLER_TYPE_VIDE)
-			{   // assume h264
-#define USE_SHORT_SYNC 0
-				char sync[4] = { 0, 0, 0, 1 };
-				while (spspps = (u8*)MP4D_read_sps(&mp4, index, i, &spspps_bytes))
-				{
-					//fwrite(sync + USE_SHORT_SYNC, 1, 4 - USE_SHORT_SYNC, fout);
-					//fwrite(spspps, 1, spspps_bytes, fout);
-					i++;
-				}
-				i = 0;
-				while (spspps = (u8*)MP4D_read_pps(&mp4, index, i, &spspps_bytes))
-				{
-					//fwrite(sync + USE_SHORT_SYNC, 1, 4 - USE_SHORT_SYNC, fout);
-					//fwrite(spspps, 1, spspps_bytes, fout);
-					i++;
-				}
-				for (i = 0; i < mp4.track[index].sample_count; i++)
-				{
-					u32 frame_bytes, timestamp, duration;
-					MP4D_file_offset_t ofs = MP4D_frame_offset(&mp4, index, i, &frame_bytes, &timestamp, &duration);
-					u8 *mem = input_buf + ofs;
-					sum_duration += duration;
-					while (frame_bytes)
-					{
-						u32 size = ((u32)mem[0] << 24) | ((u32)mem[1] << 16) | ((u32)mem[2] << 8) | mem[3];
-						size += 4;
-						mem[0] = 0; 
-						mem[1] = 0; 
-						mem[2] = 0; 
-						mem[3] = 1;
-						//fwrite(mem + USE_SHORT_SYNC, 1, size - USE_SHORT_SYNC, fout);
-						if (frame_bytes < size)
-						{
-							printf("error: demux sample failed\n");
-							exit(1);
-						}
-						
-						frame_bytes -= size;
-						mem += size;
-					}
-				}
-			}
+			ParseDemuxMP4(&cursor, end);
 		}
+		
 	}
 }
 

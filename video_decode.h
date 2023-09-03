@@ -3,7 +3,7 @@
 #ifndef VIDEO_DECODE_H
 #define VIDEO_DECODE_H
 
-#include <utils.h>
+#include "utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -136,6 +136,11 @@ struct video_decode
 #define DEMUX_MP4_BOX_SSIX  	0x78697373 // subsegment index
 #define DEMUX_MP4_BOX_PRFT  	0x74667270 // producer reference time
 
+// NOTE(Ecy): hevc related coding names
+#define DEMUX_MP4_BOX_HEV1      0x31766568 // stores all parameter sets in band
+#define DEMUX_MP4_BOX_HVC1      0x31637668 // stores all parameter sets in mp4 container
+#define DEMUX_MP4_BOX_HVCC      0x43637668 //
+
 #if 0
 char *demux_mp4_box_codes[DEMUX_MP4_BOX_COUNT] =
 {
@@ -257,7 +262,7 @@ struct demux_mp4_box_full_header
 	u64 largesize;
 	u8  userType[16];
 	
-	u32 version;
+	u8  version;
 	u8  flags[3];
 
 	// Other data 
@@ -464,6 +469,43 @@ struct demux_mp4_box_elng
 
 };
 
+struct demux_mp4_box_stsd_entry
+{
+	demux_mp4_box_header header;
+	
+	u32 reserved[6];
+	u16 dataReferenceIndex;
+};
+
+struct demux_mp4_box_hint_rtp
+{
+	demux_mp4_box_stsd_entry base;
+};
+
+struct demux_mp4_box_hint_srtp
+{
+	demux_mp4_box_stsd_entry base;
+};
+
+struct demux_mp4_box_hint_fdp
+{
+	demux_mp4_box_stsd_entry base;
+};
+
+struct demux_mp4_box_hint_rrtp
+{
+	demux_mp4_box_stsd_entry base;
+	
+	
+};
+
+struct demux_mp4_box_hint_rsrp
+{
+	demux_mp4_box_stsd_entry base;
+	
+	
+};
+
 struct demux_mp4_box_stbl
 {
 	demux_mp4_box_header header;
@@ -519,12 +561,95 @@ struct demux_mp4_box_moov
 	u32                trakCount;
 };
 
+struct demux_mp4_visual_sample
+{	
+	u16 preDefined1;
+	u16 reserved1;
+	u32 preDefined2[3];
+	i16 width;
+	i16 height;
+	r32 horizresolution = 0x00480000; // 72 dpi
+	r32 vertresolution = 0x00480000; // 72 dpi
+	u32 reserved2 = 0;
+	u16 frameCount = 1;
+	char compressorname[32];
+	u16 depth = 0x0018;
+	i16 preDefined3;
+	// other boxes from derived specifications
+	//CleanApertureBox clap; // optional
+	//PixelAspectRatioBox pasp; // optional 
+};
+
+struct demux_mp4_box_hvcc_nal
+{
+	u8 nalUnitLength;
+	//bit(8*nalUnitLength) nalUnit;
+	u8 nalUnit[1024];
+};
+
+struct demux_mp4_box_hvcc_array
+{
+	//bit(1) array_completeness;
+	u8 array_completeness;
+	//unsigned int(6) NAL_unit_type;
+	u8 NAL_unit_type;
+	u16 numNalus;
+};
+
+struct demux_mp4_box_hvcc
+{
+	demux_mp4_box_header header;
+		
+	u8 configurationVersion = 1;
+	//unsigned int(2) general_profile_space;
+	//unsigned int(1) general_tier_flag;
+	//unsigned int(5) general_profile_idc;
+	u8 general_profile_space;
+	u8 general_tier_flag;
+	u8 general_profile_idc;
+	
+	i32 general_profile_compatibility_flags;
+	u8 general_constraint_indicator_flags[6];
+	u8 general_level_idc;
+	//unsigned int(12) min_spatial_segmentation_idc;
+	//unsigned int(2) parallelismType;
+	//unsigned int(2) chromaFormat;
+	u16 min_spatial_segmentation_idc;
+	u8 parallelismType;
+	u8 chromaFormat;
+	
+	//unsigned int(3) bitDepthLumaMinus8;
+	//unsigned int(3) bitDepthChromaMinus8;
+	u8 bitDepthLumaMinus8;
+	u8 bitDepthChromaMinus8;
+	
+	u16 avgFrameRate;
+	//bit(2) constantFrameRate;
+	//bit(3) numTemporalLayers;
+	//bit(1) temporalIdNested;
+	u8 constantFrameRate;
+	u8 numTemporalLayers;
+	u8 temporalIdNested;
+	
+	//unsigned int(2) lengthSizeMinusOne;
+	u8 lengthSizeMinusOne;
+	u8 numOfArrays;	
+};
+
+struct demux_mp4_box_hev1
+{
+	demux_mp4_visual_sample sample;
+	
+	//HEVCConfigurationBox
+	demux_mp4_box_hvcc config;
+};
+
 // NOTE(Ecy): always use largesize
 inline u32
 ParseDemuxMP4Header(demux_mp4_box_header *header, u8 *data)
 {
 	u8 *cursor = data;
-	header->size = _byteSwapU32(*cursor);
+	header->size = _byteSwapU32(*(u32*)cursor);
 	cursor += sizeof(header->size);
 	header->type = *((u32*)cursor);
 	cursor += sizeof(header->type);
@@ -560,11 +685,9 @@ ParseDemuxMP4HeaderFull(demux_mp4_box_full_header *header, u8 *data)
 	header->largesize = subHeader.largesize;
 	
 	memcpy(header->userType, subHeader.userType, sizeof(subHeader.userType));
-	cursor += sizeof(subHeader.userType);
-	
 	header->isLast = subHeader.isLast;
 	
-	header->version = _byteSwapU32(*cursor);
+	header->version = *cursor;
 	cursor += sizeof(header->version);
 	
 	memcpy(cursor, header->flags, sizeof(header->flags));
