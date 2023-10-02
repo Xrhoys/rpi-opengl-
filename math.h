@@ -3,7 +3,7 @@
 #ifndef MATH_H
 #define MATH_H
 
-// NOTE(Ecy): only here for trigo/log functions, will be replaced later with approximations
+// NOTE(Xrhoys): only here for trigo/log functions, will be replaced later with approximations
 #include <math.h>
 
 union v4

@@ -7,6 +7,7 @@ Create a data folder and place in the font (arial.ttf) and the mp4 file (sample.
 ## Compiling
 
 ### Linux
+
 Run this script to configure the asset data & compile the program.
 
 ```
@@ -26,11 +27,38 @@ The shippable version is and will be written from scratch.
 
 The asset processor and toolings can use library/frameworks.
 
+## To RUN
+
+Run the asset builder executable to produce an `asset_data` file and put that in a `data` folder at the same level than current work directory.
+Also add an `sample.mp4` video file.
+
+In order to run the asset_build executable currently, it needs `ariat.ttf` file that you can download easily from internet.
+Or if you work on Windows: `C:/Windows/Fonts/arial.ttf`
+
+```
+debug
+|--data
+|  |
+|  |--- asset_data
+|  |--- sample.mp4
+|  |--- arial.ttf
+|
+|  linux-main (or win32_main)
+```
+
+## Development
+
+Currently the project uses 4Coder as its main editor and Remedybg for the debugger.
+RenderDoc does not work correctly with EGL, but eventually would be a nice addition.
+
+On linux, there's no debugger that's actually useful. You can try gdb bundled with vscode, but that's about it.
+If someone knows more about this, he or she is welcomed to complete this process.
+
 ## TODOs
 
 - ~~Start building a light asset processor pipeline (in progress...)~~
-- ~~Using stb_truetype library to load font and render pre-rasterized bitmaps.
-  This is only for debugging purpose right now, in the future the font pipeline should be able to support vectorized font data.~~
+- ~~Using stb_truetype library to load font and render pre-rasterized bitmaps.~~
+  ~~This is only for debugging purpose right now, in the future the font pipeline should be able to support vectorized font data.~~
 - ~~Handle keyboard/mouse/os events (portable way, in platform.h)~~
 - Networking basics, connect and design an additiona UDP client that can stream data to the app
 - Move the renderer and decoder each in its separate thread
@@ -38,17 +66,3 @@ The asset processor and toolings can use library/frameworks.
 ## Exploring
 
 - Explore UI structures in immediate mode (in progress...)
-
-## Vulkan decoder backend
-
-There are some issues related to decoding the frames with either FFMPEG or DRM indirectly as backend.
-Both of them will need to send the data to the GPU buffer, being decoded, then sent back to system memory.
-From here, being uploaded back to the GPU again as texture, eventually one more routine at fragment shader level to convert 
-for instance NV12 - 4:2:0 YUV planar pixel format to float RGB, which is the shader return type.
-
-This wastes a lot of system resources due to the double round trip needed (very slow), plus pixel conversions all over the place.
-It is also an issue from using  different driver implementation, for instance on RPI, the Intel DRM hardware API (hardware decoding of H265), will produce its own buffer type, which can not be directly used by OpenGL. We could use OpenCL, but it does not have video encoders implemented.
- 
-Rather, since RPI supports Vulkan (v1.2, which I just checked supports video encoders especially H264 and H265), we could simply use it both as the rendering backend, and the decoder backend.
-Doing that could potentially reduce CPU overhead.
-The only problem is the learning curve of Vulkan is quite steep, and the API has the reputation of being very verbose.

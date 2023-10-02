@@ -5,18 +5,14 @@
 
 #include "platform.h"
 #include "math.h"
-#include "video_decode.h"
-#include "video_decode_vulkan.h"
-#include "asset_build.h"
 #include "renderer.h"
-#include "renderer_vulkan.h"
+#include "video_decode.h"
+#include "asset_build.h"
 #include "utils.h"
 
 #define Kilobytes(n) n * 1024
 #define Megabytes(n) n * 1024 * 1024
 #define Gigabytes(n) n * 1024 * 1024 * 1024
-
-#define ArrSize(s) sizeof(s) / sizeof(s[0])
 
 #define MAX_UI_NODE_COUNT 1000
 
@@ -64,7 +60,7 @@ struct ui_size
 };
 
 /*
-TODO(Ecy): the goal would be to implement an API like this
+TODO(Xrhoys): the goal would be to implement an API like this
 // basic key type helpers
 UI_Key UI_KeyNull(void);
 UI_Key UI_KeyFromString(String8 string);
@@ -158,15 +154,15 @@ struct ui_node
 {
 	ui_node_type type;
 	
-	// TODO(Ecy): having referenecs in pointer is very dangerous in case 
+	// TODO(Xrhoys): having referenecs in pointer is very dangerous in case 
 	// - it gets unpaged by the OS 
 	// - cleared by other parts of the program
 	// The suggestion is to have an HASH/ID based system to find in a bucket, the linked nodes
 	ui_node *parent;
 	
-	// NOTE(Ecy): this is a fixed size cuz i can't be bothered to allocate memory for that yet, 
+	// NOTE(Xrhoys): this is a fixed size cuz i can't be bothered to allocate memory for that yet, 
 	// since we don't have custom allocators.
-	// TODO(Ecy);
+	// TODO(Xrhoys);
 	ui_node *child[5]; 
 	u32     childCount;
 	
@@ -175,7 +171,7 @@ struct ui_node
 	u32 height;
 	color *background;
 	
-	// NOTE(Ecy): relative to parent position
+	// NOTE(Xrhoys): relative to parent position
 	u32 top;
 	u32 left;
 	
@@ -187,15 +183,15 @@ struct ui_node
 
 struct app_ui
 {
-	// NOTE(Ecy): internal un-ordered ui_nodes
+	// NOTE(Xrhoys): internal un-ordered ui_nodes
 	ui_node _nodes[MAX_UI_NODE_COUNT];
 	
-	// NOTE(Ecy): the list that actually gets loop-ed through, and sorted for Z
+	// NOTE(Xrhoys): the list that actually gets loop-ed through, and sorted for Z
 	ui_node *nodes[MAX_UI_NODE_COUNT];
 	
 	u32 nodeCount;
 	
-	// NOTE(Ecy): UI building context
+	// NOTE(Xrhoys): UI building context
 	ui_node *currentContextNode;
 };
 
@@ -213,7 +209,7 @@ NewNode(app_ui *currentUI)
 {
 	ui_node *node = &currentUI->_nodes[currentUI->nodeCount++];
 	
-	// NOTE(Ecy): intent is to ZeroMemory(), platform independant. Since the UI tree is rebuilt every frame. 
+	// NOTE(Xrhoys): intent is to ZeroMemory(), platform independant. Since the UI tree is rebuilt every frame. 
 	// But not sure what's the generated ASM in CL/GCC 
 	*node = {};
 	
@@ -228,7 +224,7 @@ struct font_engine
 	u32 textureId;
 };
 
-// NOTE(Ecy): problems with overlapped windwow, it has to come from state that lives cross frames
+// NOTE(Xrhoys): problems with overlapped windwow, it has to come from state that lives cross frames
 // and not within the life cycle of a single frame
 inline b32
 IsUiHovered(app_pointer_input *pointer, app_ui *ui)

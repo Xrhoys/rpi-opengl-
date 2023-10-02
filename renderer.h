@@ -3,6 +3,16 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <EGL/eglplatform.h>
+#include <GL/gl.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
+
+#define GL_ES_VERSION_3_0 1
+
 #include "asset_build.h"
 #include "utils.h"
 
@@ -107,7 +117,55 @@ enum buffer_labels
 	BUFFER_COUNT,
 };
 
-// TODO(Ecy): either generate float versions of color macros
+inline char* 
+getErrorStr(EGLint code)
+{
+	switch(code)
+	{
+		case EGL_SUCCESS: return "No error";
+		case EGL_NOT_INITIALIZED: return "EGL not initialized or failed to initialize";
+		case EGL_BAD_ACCESS: return "Resource inaccessible";
+		case EGL_BAD_ALLOC: return "Cannot allocate resources";
+		case EGL_BAD_ATTRIBUTE: return "Unrecognized attribute or attribute value";
+		case EGL_BAD_CONTEXT: return "Invalid EGL context";
+		case EGL_BAD_CONFIG: return "Invalid EGL frame buffer configuration";
+		case EGL_BAD_CURRENT_SURFACE: return "Current surface is no longer valid";
+		case EGL_BAD_DISPLAY: return "Invalid EGL display";
+		case EGL_BAD_SURFACE: return "Invalid surface";
+		case EGL_BAD_MATCH: return "Inconsistent arguments";
+		case EGL_BAD_PARAMETER: return "Invalid argument";
+		case EGL_BAD_NATIVE_PIXMAP: return "Invalid native pixmap";
+		case EGL_BAD_NATIVE_WINDOW: return "Invalid native window";
+		case EGL_CONTEXT_LOST: return "Context lost";
+		default: return "";
+	}
+}
+
+#define GetGlErrorString() _GetGlErrorString(__FILE__, __LINE__) 
+inline void
+_GetGlErrorString(const char *file, int line)
+{
+	GLenum errorCode = glGetError();
+	
+	// NOTE(Xrhoys): return up to 50 error strings
+	char *errors[50];
+	while ((errorCode = glGetError()) != GL_NO_ERROR)
+    {
+        char *error;
+        switch (errorCode)
+        {
+            case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
+            case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
+            case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
+            case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
+            case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        }
+    }
+}
+
+// TODO(Xrhoys): either generate float versions of color macros
 // OR do the transform shader side. Having byte sized color channel is useful for making tooling later
 inline v4
 RGBToFloat(color cl)
@@ -135,7 +193,7 @@ CreateRenderGroup(app_state *appContext, memory_arena *arena, u32 vArraySize, u3
 	return render;
 };
 
-// NOTE(Ecy): not sure if this should be kept or not, to remove if not used at all
+// NOTE(Xrhoys): not sure if this should be kept or not, to remove if not used at all
 inline void
 PushAxisAlignedRect(render_group *group, r32 x, r32 y, r32 width, r32 height, r32 *color)
 {
@@ -166,13 +224,13 @@ PushAxisAlignedRect(render_group *group, r32 x, r32 y, r32 width, r32 height, r3
 	group->indexCount += 6;
 }
 
-// TODO(Ecy): look to merge this to the glyph version, since it's really not that different
+// TODO(Xrhoys): look to merge this to the glyph version, since it's really not that different
 inline void
 PushAxisAlignedGlyph(render_group *group, r32 x, r32 y, r32 width, r32 height, 
 					 r32 u, r32 v, r32 u2, r32 v2, r32 *color)
 {
 	Assert(group->appContext);
-	// TODO(Ecy): remove this global state later
+	// TODO(Xrhoys): remove this global state later
 	r32 posX = (2.0f * x / group->appContext->width) - 1.0f;
 	r32 posY = (-2.0f * y / group->appContext->height) + 1.0f ;
 	
@@ -188,7 +246,7 @@ PushAxisAlignedGlyph(render_group *group, r32 x, r32 y, r32 width, r32 height,
 		| \|  C(x + width, y + height)     (u + glyphWidth, v + glyphHeight)
 		D--C  D(x, y + height)             (u, v + glyphHeight)
 
-		NOTE(Ecy): the following is upside down due to the screen orientation convention used
+		NOTE(Xrhoys): the following is upside down due to the screen orientation convention used
 	*/
 	
 	vt[0] = Vertex(posX,     posHeight, 0.5f,   u, v2, color[0], color[1], color[2], color[3]);
@@ -206,5 +264,50 @@ PushAxisAlignedGlyph(render_group *group, r32 x, r32 y, r32 width, r32 height,
 	group->vertexCount += 4;
 	group->indexCount += 6;
 }
+
+/// Some gl extensions that don't seem to be part of raspberry gl. 
+/// I think you could get these from other places like GLAD or libepoxy.
+///
+EGLImageKHR eglCreateImageKHR(EGLDisplay dpy, EGLContext ctx, EGLenum target, EGLClientBuffer buffer, const EGLint *attrib_list) __attribute__((weak)); // May not be in libEGL symbol table, resolve manually :(
+EGLImageKHR eglCreateImageKHR(EGLDisplay dpy, EGLContext ctx, EGLenum target, EGLClientBuffer buffer, const EGLint *attrib_list)
+{
+	static PFNEGLCREATEIMAGEKHRPROC createImageProc = 0;
+	if(!createImageProc) {
+		createImageProc = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR");
+	}
+	return createImageProc(dpy, ctx, target, buffer, attrib_list);
+}
+
+EGLBoolean eglDestroyImageKHR(EGLDisplay dpy, EGLImageKHR image) __attribute__((weak)); // May not be in libEGL symbol table, resolve manually :(
+EGLBoolean eglDestroyImageKHR(EGLDisplay dpy, EGLImageKHR image)
+{
+	static PFNEGLDESTROYIMAGEKHRPROC destroyImageProc = 0;
+	if(!destroyImageProc) {
+		destroyImageProc = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR");
+	}
+	return destroyImageProc(dpy, image);
+}
+
+// void glDebugMessageCallbackKHR(EGLDEBUGPROCKHR callback, void *userParam) __attribute__((weak)); // May not be in libEGL symbol table, resolve manually :(
+// void glDebugMessageCallbackKHR(EGLDEBUGPROCKHR callback, void *userParam)
+// {
+// 	static PFNGLDEBUGMESSAGECALLBACKAMDPROC debugMessageCallbackProc = 0;
+// 	if(!debugMessageCallbackProc) {
+// 		debugMessageCallbackProc = (PFNGLDEBUGMESSAGECALLBACKKHRPROC)eglGetProcAddress("glDebugMessageCallbackKHR");
+// 	}
+// 	debugMessageCallbackProc(callback, userParam);
+// }
+
+
+void glEGLImageTargetTexture2DOES(GLenum target, GLeglImageOES image) __attribute__((weak)); // May not be in libEGL symbol table, resolve manually :(
+void glEGLImageTargetTexture2DOES(GLenum target, GLeglImageOES image)
+{
+	static PFNGLEGLIMAGETARGETTEXTURE2DOESPROC imageTargetTexture2DOES = 0;
+	if(!imageTargetTexture2DOES) {
+		imageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES");
+	}
+	imageTargetTexture2DOES(target, image);
+}
+/// END Gl Extensions --------------------------------------------------
 
 #endif //RENDERER_H

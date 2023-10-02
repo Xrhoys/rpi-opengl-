@@ -25,7 +25,7 @@ extern "C" {
 	typedef int32_t  b32;
 	
 	
-	// TODO(Ecy): finish the input layer with all keys on a 100% keyboard, fuck 108
+	// TODO(Xrhoys): finish the input layer with all keys on a 100% keyboard, no to 108
 	enum KEY_LABELS
 	{
 		KEY_W,
@@ -75,7 +75,7 @@ extern "C" {
 		MOUSE_WHEEL,
 		MOUSE_BACKWARD,
 		MOUSE_FORWARD,
-		// NOTE(Ecy): support horizontal scrolling on mice like G502
+		// NOTE(Xrhoys): support horizontal scrolling on mice like G502
 		MOUSE_SCROLL_LEFT,
 		MOUSE_SCROLL_RIGHT,
 		
@@ -104,15 +104,12 @@ extern "C" {
 #define DEBUG_CLOCK_GET_TIME(name) r32 name(void)
 	typedef DEBUG_CLOCK_GET_TIME(debug_clock_get_time);
 	
-#define DEBUG_PLATFORM_PRINT_OUT(name) void name(char *buffer, u32 size)
-	typedef DEBUG_PLATFORM_PRINT_OUT(debug_platform_print_out);
-		
 	typedef struct app_input_state
 	{
 		u32 halfTransitionCount;
 		b32 endedDown;
 		
-		// NOTE(Ecy): timestamp from which the button started to be DOWN
+		// NOTE(Xrhoys): timestamp from which the button started to be DOWN
 		r32 startHoldTime;
 	} app_input_state;
 	
@@ -154,14 +151,12 @@ extern "C" {
 		debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 		debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
 		
-		debug_platform_print_out         *DEBUGPlatformPrint;
-		
 		r64       clock;
 		r64       frameTime;
 		
 		debug_clock_get_time             *getTime; // Get current time
 		
-		// TODO(Ecy): should we support multiple input devices at the same time?
+		// TODO(Xrhoys): should we support multiple input devices at the same time?
 		app_keyboard_input *keyboards[4];
 		app_pointer_input  *pointers[4];
 	} app_state;

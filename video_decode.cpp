@@ -1,296 +1,6 @@
 #include "video_decode.h"
 
-internal void
-ParseH265Stream(u8 *stream)
-{
-		
-}
-
-internal u32 
-ParseStbl()
-{
-	
-}
-
-internal u32
-ParseDinf(demux_mp4_box_dinf *dinf, u8 *cursor)
-{
-	demux_mp4_box_header header = {};
-	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + header.size;
-
-#if 0	
-	cursor += headerSize;
-	
-	while(cursor < end)
-	{
-		demux_mp4_box_dref *dref = &box->dref[box->boxCount++];
-		headerSize = ParseDemuxMP4HeaderFull(&dref->header, cursor);
-		
-		cursor += headerSize;
-		
-		dref->entryCount = _byteSwapU32(cursor);
-		cursor += sizeof(u32);
-		
-		for(u32 index = 0;
-			index < dref->entryCount;
-			++index)
-		{
-			// 
-		}
-	}
-#endif
-	
-	return end - cursor;
-}
-
-internal u32
-ParseMinf(demux_mp4_box_minf *box, u8 *cursor) 
-{
-	demux_mp4_box_header header = {};
-	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + header.size;
-	
-	cursor += headerSize;
-	
-	while(cursor < end)
-	{
-		switch(header.type)
-		{
-			case DEMUX_MP4_BOX_VMHD:
-			{
-				memcpy(&box->vmhd.header, &header, sizeof(header));
-				
-				box->vmhd.graphicsMode = *(u16*)cursor++;
-				memcpy(&box->vmhd.opColor, &cursor, sizeof(box->vmhd.opColor));
-			}break;
-			case DEMUX_MP4_BOX_SMHD:
-			{
-				memcpy(&box->smhd.header, &header, sizeof(header));
-				
-				box->smhd.balance = *(u16*)cursor;
-				cursor += sizeof(u32);
-			}break;
-			case DEMUX_MP4_BOX_HMHD:
-			{
-				memcpy(&box->hmhd.header, &header, sizeof(header));
-				
-				box->hmhd.maxPDUsize = *(u16*)cursor++;
-				box->hmhd.avgPDUsize = *(u16*)cursor++;
-				box->hmhd.maxbitrate = *(u32*)cursor++;
-				box->hmhd.avgbitrate = *(u32*)cursor++;
-			}break;
-			case DEMUX_MP4_BOX_STHD:
-			{
-				memcpy(&box->hmhd.header, &header, sizeof(header));
-				
-				cursor += box->hmhd.header.size;
-			}break;
-			case DEMUX_MP4_BOX_NMHD:
-			{
-				//memcpy(&box->nmhd.header, &header, sizeof(header));
-				
-				cursor += header.size;
-			}break;
-			case DEMUX_MP4_BOX_DINF:
-			{
-				box->dinf.header = header;
-				
-				cursor += ParseDinf(&box->dinf, cursor);
-			}break;
-			default: break;
-		}
-		
-	}
-	
-	return end - cursor;
-}
-
-internal u32
-ParseMdia(demux_mp4_box_mdia *box, u8 *cursor) 
-{
-	demux_mp4_box_header header = {};
-	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + header.size;
-	
-	cursor += headerSize;
-	
-	switch(header.type)
-	{
-		case DEMUX_MP4_BOX_MDHD:
-		{
-			// TODO(Ecy): Parse mdhd
-		}break;
-		case DEMUX_MP4_BOX_HDLR:
-		{
-			
-		}break;
-		case DEMUX_MP4_BOX_ELNG:
-		{
-
-		}break;
-		case DEMUX_MP4_BOX_MINF:
-		{
-			box->minf.header = header;
-
-			cursor += ParseMinf(&box->minf, cursor);
-		}break;
-		case DEMUX_MP4_BOX_STBL:
-		{
-			// THE MOST IMPORTANT METADATA!
-		}break;
-		default: break;
-	}
-
-	return end - cursor;
-}
-
-internal u32
-ParseTrak(demux_mp4_box_trak *box, u8 *cursor)
-{
-	demux_mp4_box_header header = {};
-	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + header.size;
-	
-	cursor += headerSize;
-	
-	while(cursor > end) 
-	{
-		switch(header.type)
-		{
-			case DEMUX_MP4_BOX_TKHD:
-			{
-				memcpy(&box->tkhd.header, &header, sizeof(header));
-
-				// Parse TKHD
-				
-			}break;
-			case DEMUX_MP4_BOX_TREF:
-			{
-
-			}break;
-			case DEMUX_MP4_BOX_TRGR:
-			{
-
-			}break;
-			case DEMUX_MP4_BOX_MDIA:
-			{
-				box->mdia.header = header;
-
-				cursor += ParseMdia(&box->mdia, cursor);
-			}break;
-			default: break;
-		}
-
-	}
-
-	return end - cursor;
-}
-
-internal u32
-ParseMOOV(demux_mp4_box_moov *box, u8 *cursor)
-{
-	demux_mp4_box_header header = {};
-	u32 headerSize = ParseDemuxMP4Header(&header, cursor);
-	u8 *end = cursor + header.size;
-	
-	cursor += headerSize;
-	
-	while(cursor > end)
-	{
-		switch(header.type)
-		{
-			case DEMUX_MP4_BOX_MVHD:
-			{
-				// cursor += ParseDemuxMP4HeaderFull(&box->mvhd.header, cursor);
-			}break;
-			case DEMUX_MP4_BOX_TRAK:
-			{
-				demux_mp4_box_trak *trak = &box->trak[box->trakCount++];
-				trak->header = header;
-
-				cursor += ParseTrak(trak, cursor);
-			}break;
-			default:
-			{
-
-			}break;
-		}
-	}
-
-	return end - cursor;
-}
-
-internal void
-MP4VideoDemuxer(debug_read_file_result *file)
-{
-	u8 *boxCursor = (u8*)file->contents;
-	u8 *end = boxCursor + file->contentSize;
-	
-	while(boxCursor < end)
-	{
-		u8 *cursor = boxCursor;
-		u32 boxSize = 0;
-		
-		demux_mp4_box_header header = {};
-		cursor += ParseDemuxMP4Header(&header, cursor);
-		
-		switch(header.size)
-		{
-			case 0:
-			{
-				// NOTE(Ecy): last box, size extends until the end of the file
-				boxSize = end - cursor;
-			}break;
-			
-			case 1:
-			{
-				// NOTE(Ecy): Large size is read instead
-				header.largesize = _byteSwapU64(*((u64*)cursor));
-				cursor += sizeof(u64);
-				
-				boxSize = header.largesize;
-			}break;
-			
-			default: 
-			{
-				boxSize = header.size;
-			}break;
-		}
-		
-		switch(header.type)
-		{
-			case DEMUX_MP4_BOX_FTYP:
-			{
-				demux_mp4_box_ftyp box = {};
-				box.majorBrand = *((u32*)cursor);
-				cursor += sizeof(u32);
-				box.minorVersion = _byteSwapU32(*((u32*)cursor));
-				cursor += sizeof(u32);
-				
-				box.compatibleBrand = (char*)cursor;
-				box.brandCharSize   = boxSize - (cursor - boxCursor);
-			}break;
-			
-			case DEMUX_MP4_BOX_MOOV:
-			{
-				demux_mp4_box_moov box = {};
-				memcpy(&box.header, &header, sizeof(header));
-
-				cursor += ParseMOOV(&box, cursor);
-			}break;
-			
-			default:
-			{
-				// Unhandle type skip
-			}break;
-		}
-		
-		boxCursor += boxSize;
-	}
-}
-
-// NOTE(Ecy): return type is temporary
+// NOTE(Xrhoys): return type is temporary
 internal void
 LoadVideoContext(video_decode *decoder, char *filename)
 {
@@ -343,44 +53,49 @@ LoadVideoContext(video_decode *decoder, char *filename)
 		// Copy context failed
 		return;
 	}
+
+	// Find hardware pixel format
+	for (i32 i = 0;; i++) {
+        const AVCodecHWConfig *config = avcodec_get_hw_config(decoder->codec, i);
+        if (!config) {
+            fprintf(stderr, "Decoder %s does not support device type %s.\n",
+                    decoder->codec->name, av_hwdevice_get_type_name(DECODE_HW_DEVICE_TYPE));
+            return;
+        }
+        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+            config->device_type == DECODE_HW_DEVICE_TYPE) {
+            hw_pix_fmt = config->pix_fmt;
+            break;
+        }
+    }
+
+	decoder->codecContext->get_format = get_hw_format;
+
+	// HW Decoder init
+	if(hw_decoder_init(decoder, DECODE_HW_DEVICE_TYPE) < 0)
+        return;
 	
 	if(avcodec_open2(decoder->codecContext, decoder->codec, NULL) < 0)
 	{
 		// Could not open codec
 		return;
 	}
-	
+
+#if 0
 	decoder->pFrame    = av_frame_alloc();
-	decoder->pFrameRGB = av_frame_alloc();
 	decoder->packet    = av_packet_alloc();
-
-#ifdef BE_SOFTWARE	
-	decoder->swsCtx = sws_getContext(decoder->codecContext->width, decoder->codecContext->height, AV_PIX_FMT_YUV420P, 
-							decoder->codecContext->width, decoder->codecContext->height, AV_PIX_FMT_RGB24,
-							SWS_BICUBIC, NULL, NULL, NULL);
-	
-	u32 num_bytes = av_image_get_buffer_size(AV_PIX_FMT_RGB24, decoder->codecContext->width, decoder->codecContext->height, 1);
-	unsigned char* frame_buffer = (u8*)av_malloc(num_bytes);
-	av_image_fill_arrays(decoder->pFrameRGB->data,       //uint8_t *dst_data[4], 
-						 decoder->pFrameRGB->linesize,   //int dst_linesize[4],
-						 frame_buffer,          //const uint8_t * src,
-						 AV_PIX_FMT_RGB24,      //enum AVPixelFormat pix_fmt,
-						 decoder->codecContext->width,   //int width, 
-						 decoder->codecContext->height,  //int height,
-						 1);                    //int align);
-	
-	decoder->pFrameRGB->width = decoder->codecContext->width;
-	decoder->pFrameRGB->height = decoder->codecContext->height;
-
-	if(!decoder->swsCtx)
+#else
+	// NOTE(Ecy): pre-allocate the packets in work queue
+	for(u32 index = 0;
+		index < DECODE_QUEUE_SIZE;
+		++index)
 	{
-		// no scaler context found
-		return;
+		decoder->framePool[index].packet = av_packet_alloc();
+		decoder->framePool[index].frameId = -1;
+		decoder->framePool[index].decoder = decoder;
 	}
 #endif
 
-	//auto descriptor = av_pix_fmt_desc_get(AV_PIX_FMT_NV12);
-	
 	decoder->isLoaded = true;
 }
 
@@ -399,9 +114,8 @@ Decode(video_decode *decoder)
         return;
     }
 	
-	decoder->pFrame = av_frame_alloc();
     while (ret >= 0) {
-		ret = avcodec_receive_frame(decoder->codecContext, decoder->pFrame);
+        ret = avcodec_receive_frame(decoder->codecContext, decoder->pFrame);
 		
 		av_strerror(ret, buffer, 1024);
 		
@@ -411,41 +125,285 @@ Decode(video_decode *decoder)
             fprintf(stderr, "Error during decoding\n");
             return;
         }
-#ifdef BE_SOFTWARE
+
 		if(ret >= 0)
 		{
-			ret = sws_scale(decoder->swsCtx, (const u8* const*)decoder->pFrame->data, decoder->pFrame->linesize,
-							0, decoder->pFrame->height,
-							(u8 *const *)decoder->pFrameRGB->data, decoder->pFrameRGB->linesize);
-		}
-#eflif BE_VULKAN
-		if(ret >= 0)
-		{
-			// Vulkan decoding process:
-			// 2 - Decoding: get frame data from index, set decodedFrame *lastDecodedFrame = null
-			// 3 - if lastDecodedFrame != null, and queryPool of the frame not null => vkGetQueryPoolResults
-			// 4 - else test lastDecodedFrame->frameCompleteFence different VkFence, wait for fence then get fence status
-			// 5 - after 3 and 4, release currently displayedFrame and reset lastDecodedFrame
-			// 6 - compute numVideoFrames from GetNextFrame() and test if needs to stop decoding or not
-			// 7 - DrawFrame()
-		}
+#if RPI
+			AVHWFramesContext *hwContext = (AVHWFramesContext*)decoder->pFrame->hw_frames_ctx->data;
+			AVDRMFrameDescriptor *drmDesc = (AVDRMFrameDescriptor*)decoder->pFrame->data[0];
+			AVDRMObjectDescriptor *obj = &drmDesc->objects[0];
+			auto *layer = &drmDesc->layers[0];
+
+			EGLint atts[] = {
+				// W, H used in TexImage2D above!
+				EGL_WIDTH, decoder->pFrame->width,
+				EGL_HEIGHT, decoder->pFrame->height,
+				EGL_LINUX_DRM_FOURCC_EXT, (EGLint)drmDesc->layers[0].format,
+				EGL_DMA_BUF_PLANE0_FD_EXT, drmDesc->objects[layer->planes[0].object_index].fd,
+				EGL_DMA_BUF_PLANE0_OFFSET_EXT, (EGLint)layer->planes[0].offset,
+				EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)layer->planes[0].pitch,
+				EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT, (EGLint)(drmDesc->objects[layer->planes[0].object_index].format_modifier & 0xFFFFFFFF),
+  				EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, (EGLint)(drmDesc->objects[layer->planes[0].object_index].format_modifier >> 32),
+				EGL_DMA_BUF_PLANE1_FD_EXT, drmDesc->objects[layer->planes[1].object_index].fd,
+				EGL_DMA_BUF_PLANE1_OFFSET_EXT, (EGLint)layer->planes[1].offset,
+				EGL_DMA_BUF_PLANE1_PITCH_EXT, (EGLint)layer->planes[1].pitch,
+				EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT, (EGLint)(drmDesc->objects[layer->planes[1].object_index].format_modifier & 0xFFFFFFFF),
+  				EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT, (EGLint)(drmDesc->objects[layer->planes[1].object_index].format_modifier >> 32),
+				// EGL_YUV_COLOR_SPACE_HINT_EXT, EGL_ITU_REC709_EXT,
+				// EGL_SAMPLE_RANGE_HINT_EXT, EGL_YUV_FULL_RANGE_EXT,
+				EGL_NONE,
+			};
+			EGLImageKHR imgB = eglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer)(uint64_t)0, atts);
+			Assert(imgB != EGL_NO_IMAGE);
+
+			glEnable(GL_TEXTURE_EXTERNAL_OES);
+			glBindTexture(GL_TEXTURE_EXTERNAL_OES, g_bgTexture);
+			glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, imgB);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+           	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			eglDestroyImageKHR(eglDisplay, imgB);
+#else
+			// AVHWFramesContext *hwContext = (AVHWFramesContext*)decoder->pFrame->hw_frames_ctx->data;
+			VASurfaceID vaSurface = (uintptr_t)decoder->pFrame->data[3];
+
+			VADRMPRIMESurfaceDescriptor prime;
+			int res = vaExportSurfaceHandle(decoder->vaDisplay, vaSurface, 
+									VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2, 
+									VA_EXPORT_SURFACE_READ_ONLY | VA_EXPORT_SURFACE_COMPOSED_LAYERS, 
+									&prime);
+			if(res != VA_STATUS_SUCCESS)
+			{
+				fprintf(stderr, "failed %d\n", res);
+				// TODO(Xrhoys): log failure
+				return;
+			}
+
+			vaSyncSurface(decoder->vaDisplay, vaSurface);
+
+			// fprintf(stdout, "Fourcc: %c%c%c%c\n", prime.fourcc << 24, prime.fourcc << 16, prime.fourcc << 8, prime.fourcc);
+			// for(u32 index = 0; index < prime.num_layers; ++index)
+			// {
+			// 	fprintf(stdout, "Layer info: %d, %d\n", prime.layers[index].drm_format);
+			// 	for(u32 planeIndex = 0; planeIndex < prime.layers[index].num_planes; ++planeIndex)
+			// 	{
+			// 		fprintf(stdout, "plane info: %d, %d, %d\n", prime.layers[index].object_index[planeIndex], prime.layers[index].offset[planeIndex], prime.layers[index].pitch[planeIndex]);
+			// 	}
+			// }
+			
+			EGLint format = prime.layers[0].drm_format;
+			auto object1 = &prime.objects[0];
+			auto object2 = &prime.objects[1];
+			auto layer = &prime.layers[0];
+
+			EGLint atts[] = {
+				// W, H used in TexImage2D above!
+				EGL_WIDTH, decoder->pFrame->width,
+				EGL_HEIGHT, decoder->pFrame->height,
+				EGL_LINUX_DRM_FOURCC_EXT, format,
+				EGL_DMA_BUF_PLANE0_FD_EXT, object1->fd,
+				EGL_DMA_BUF_PLANE0_OFFSET_EXT, (EGLint)layer->offset[0],
+				EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)layer->pitch[0],
+				EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT, (EGLint)(object1->drm_format_modifier & 0xFFFFFFFF),
+				EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, (EGLint)(object1->drm_format_modifier >> 32),
+				EGL_DMA_BUF_PLANE1_FD_EXT, object2->fd,
+				EGL_DMA_BUF_PLANE1_OFFSET_EXT, (EGLint)layer->offset[1],
+				EGL_DMA_BUF_PLANE1_PITCH_EXT, (EGLint)layer->pitch[1],
+				EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT, (EGLint)(object2->drm_format_modifier & 0xFFFFFFFF),
+				EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT, (EGLint)(object2->drm_format_modifier >> 32),
+				// EGL_YUV_COLOR_SPACE_HINT_EXT, EGL_ITU_REC709_EXT,
+				// EGL_SAMPLE_RANGE_HINT_EXT, EGL_YUV_FULL_RANGE_EXT,
+				EGL_NONE,
+			};
+			EGLImageKHR imgB = eglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer)(uint64_t)0, atts);
+			Assert(imgB != EGL_NO_IMAGE);
+
+			glEnable(GL_TEXTURE_EXTERNAL_OES);
+			glBindTexture(GL_TEXTURE_EXTERNAL_OES, g_bgTexture);
+			glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, imgB);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+           	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			eglDestroyImageKHR(eglDisplay, imgB);
 #endif
+		}
+
+    }
+}
+
+internal void
+DecodeThreaded(video_decode_unit *unit)
+{
+	video_decode *decoder = unit->decoder;
+	AVFrame *frame = unit->frame;
+	AVPacket *packet = unit->packet;
+	fprintf(stderr, "debug4: \n");
+	
+    int ret;
+	
+	char buffer[1024];
+    ret = avcodec_send_packet(decoder->codecContext, packet);
+	
+	fprintf(stderr, "debug4.5\n");
+	
+	av_strerror(ret, buffer, 1024);
+	
+    if (ret < 0) {
+        fprintf(stderr, "Error sending a packet for decoding\n");
+        return;
+    }
+	
+    while (ret >= 0) {
+        ret = avcodec_receive_frame(decoder->codecContext, frame);
+		
+		av_strerror(ret, buffer, 1024);
+		
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+            return;
+        else if (ret < 0) {
+            fprintf(stderr, "Error during decoding\n");
+            return;
+        }
+		
+		if(ret >= 0)
+		{
+			fprintf(stderr, "debug5");
+			
+#if RPI
+			AVHWFramesContext *hwContext = (AVHWFramesContext*)frame->hw_frames_ctx->data;
+			AVDRMFrameDescriptor *drmDesc = (AVDRMFrameDescriptor*)frame->data[0];
+			AVDRMObjectDescriptor *obj = &drmDesc->objects[0];
+			auto *layer = &drmDesc->layers[0];
+			
+			EGLint atts[] = {
+				// W, H used in TexImage2D above!
+				EGL_WIDTH, frame->width,
+				EGL_HEIGHT, frame->height,
+				EGL_LINUX_DRM_FOURCC_EXT, (EGLint)drmDesc->layers[0].format,
+				EGL_DMA_BUF_PLANE0_FD_EXT, drmDesc->objects[layer->planes[0].object_index].fd,
+				EGL_DMA_BUF_PLANE0_OFFSET_EXT, (EGLint)layer->planes[0].offset,
+				EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)layer->planes[0].pitch,
+				EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT, (EGLint)(drmDesc->objects[layer->planes[0].object_index].format_modifier & 0xFFFFFFFF),
+				EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, (EGLint)(drmDesc->objects[layer->planes[0].object_index].format_modifier >> 32),
+				EGL_DMA_BUF_PLANE1_FD_EXT, drmDesc->objects[layer->planes[1].object_index].fd,
+				EGL_DMA_BUF_PLANE1_OFFSET_EXT, (EGLint)layer->planes[1].offset,
+				EGL_DMA_BUF_PLANE1_PITCH_EXT, (EGLint)layer->planes[1].pitch,
+				EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT, (EGLint)(drmDesc->objects[layer->planes[1].object_index].format_modifier & 0xFFFFFFFF),
+				EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT, (EGLint)(drmDesc->objects[layer->planes[1].object_index].format_modifier >> 32),
+				// EGL_YUV_COLOR_SPACE_HINT_EXT, EGL_ITU_REC709_EXT,
+				// EGL_SAMPLE_RANGE_HINT_EXT, EGL_YUV_FULL_RANGE_EXT,
+				EGL_NONE,
+			};
+			EGLImageKHR imgB = eglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer)(uint64_t)0, atts);
+			Assert(imgB != EGL_NO_IMAGE);
+			
+			glEnable(GL_TEXTURE_EXTERNAL_OES);
+			glBindTexture(GL_TEXTURE_EXTERNAL_OES, g_bgTexture);
+			glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, imgB);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			
+			eglDestroyImageKHR(eglDisplay, imgB);
+#else
+			// AVHWFramesContext *hwContext = (AVHWFramesContext*)decoder->pFrame->hw_frames_ctx->data;
+			VASurfaceID vaSurface = (uintptr_t)frame->data[3];
+			
+			VADRMPRIMESurfaceDescriptor prime;
+			int res = vaExportSurfaceHandle(decoder->vaDisplay, vaSurface, 
+											VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2, 
+											VA_EXPORT_SURFACE_READ_ONLY | VA_EXPORT_SURFACE_COMPOSED_LAYERS, 
+											&prime);
+			if(res != VA_STATUS_SUCCESS)
+			{
+				fprintf(stderr, "failed %d\n", res);
+				// TODO(Xrhoys): log failure
+				return;
+			}
+			
+			vaSyncSurface(decoder->vaDisplay, vaSurface);
+			
+			// fprintf(stdout, "Fourcc: %c%c%c%c\n", prime.fourcc << 24, prime.fourcc << 16, prime.fourcc << 8, prime.fourcc);
+			// for(u32 index = 0; index < prime.num_layers; ++index)
+			// {
+			// 	fprintf(stdout, "Layer info: %d, %d\n", prime.layers[index].drm_format);
+			// 	for(u32 planeIndex = 0; planeIndex < prime.layers[index].num_planes; ++planeIndex)
+			// 	{
+			// 		fprintf(stdout, "plane info: %d, %d, %d\n", prime.layers[index].object_index[planeIndex], prime.layers[index].offset[planeIndex], prime.layers[index].pitch[planeIndex]);
+			// 	}
+			// }
+			
+			EGLint format = prime.layers[0].drm_format;
+			auto object1 = &prime.objects[0];
+			auto object2 = &prime.objects[1];
+			auto layer = &prime.layers[0];
+			
+			EGLint atts[] = {
+				// W, H used in TexImage2D above!
+				EGL_WIDTH, frame->width,
+				EGL_HEIGHT, frame->height,
+				EGL_LINUX_DRM_FOURCC_EXT, format,
+				EGL_DMA_BUF_PLANE0_FD_EXT, object1->fd,
+				EGL_DMA_BUF_PLANE0_OFFSET_EXT, (EGLint)layer->offset[0],
+				EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)layer->pitch[0],
+				EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT, (EGLint)(object1->drm_format_modifier & 0xFFFFFFFF),
+				EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, (EGLint)(object1->drm_format_modifier >> 32),
+				EGL_DMA_BUF_PLANE1_FD_EXT, object2->fd,
+				EGL_DMA_BUF_PLANE1_OFFSET_EXT, (EGLint)layer->offset[1],
+				EGL_DMA_BUF_PLANE1_PITCH_EXT, (EGLint)layer->pitch[1],
+				EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT, (EGLint)(object2->drm_format_modifier & 0xFFFFFFFF),
+				EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT, (EGLint)(object2->drm_format_modifier >> 32),
+				// EGL_YUV_COLOR_SPACE_HINT_EXT, EGL_ITU_REC709_EXT,
+				// EGL_SAMPLE_RANGE_HINT_EXT, EGL_YUV_FULL_RANGE_EXT,
+				EGL_NONE,
+			};
+			EGLImageKHR imgB = eglCreateImageKHR(eglDisplay, EGL_NO_CONTEXT, EGL_LINUX_DMA_BUF_EXT, (EGLClientBuffer)(uint64_t)0, atts);
+			Assert(imgB != EGL_NO_IMAGE);
+
+#if 0			
+			glEnable(GL_TEXTURE_EXTERNAL_OES);
+			glBindTexture(GL_TEXTURE_EXTERNAL_OES, g_bgTexture);
+			glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, imgB);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			
+			eglDestroyImageKHR(eglDisplay, imgB);
+#endif
+#endif
+			unit->isReady = true;
+			unit->eglImage = imgB;
+			unit->frameId = decoder->frameIdCounter_++;
+			
+		}
+		
     }
 }
 
 internal void
 UpdateDecode(video_decode *decoder)
 {
-	if(av_read_frame(decoder->formatContext, decoder->packet) >= 0)
+	// NOTE(Xrhoys): select available decoding frame from pool
+	for(u32 index = 0;
+		index < DECODE_QUEUE_SIZE;
+		++index)
 	{
-		if(decoder->packet->stream_index == decoder->streamIndex)
+		video_decode_unit *unit = &decoder->framePool[index];
+		if(unit->frameId == -1)
 		{
-			Decode(decoder);
+			if(av_read_frame(decoder->formatContext, unit->packet) >= 0)
+			{
+				if(unit->packet->stream_index == decoder->streamIndex)
+				{
+					Decode(decoder);
+				}
+				
+				av_packet_unref(unit->packet);
+				av_frame_unref(unit->frame);
+			}
+			break;
 		}
 		
-		av_packet_unref(decoder->packet);
-		av_frame_unref(decoder->pFrame);
 	}
+	
 }
 
 internal void
@@ -458,6 +416,5 @@ FreeDecode(video_decode *decode)
 	avcodec_free_context(&decode->codecContext);
 	
 	av_frame_unref(decode->pFrame);
-	av_frame_unref(decode->pFrameRGB);
 	av_packet_free(&decode->packet);
 }

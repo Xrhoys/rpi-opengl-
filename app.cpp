@@ -3,18 +3,17 @@
 #include "renderer.cpp"
 #include "video_decode.cpp"
 
-#include "video_decode_vulkan.cpp"
-
 #define FONT_FILE "data/asset_data"
-#define SAMPLE_DATA "data/sample.mp4"
+#define SAMPLE_DATA "data/sample.mkv"
+#define ASSET_DATA "data/asset_data"
 
-// NOTE(Ecy): nothing of those should remain global => integrate into app state mega struct
 global video_decode decoder;
 global app_ui mainUi;
+GLuint texture;
 global memory_arena g_mainArena;
 global color DEFAULT_TEXT_COLOR = WHITE;
 
-// NOTE(Ecy): UI test globals
+// NOTE(Xrhoys): UI test globals
 global v2U32 mainFramePos  = { 100, 100 };
 global v2U32 mainFrameSize = { 200, 200 };
 
@@ -25,15 +24,14 @@ global v2U32 lastClickedPos = { 100, 100 };
 
 /*
 // The following describe an Immediate mode GUI API 
+// Very much work in progress
 */
-
-// UI Frame element
 internal b32
 UIFrameBegin(char *title, u32 titleSize, v2U32 *pos, v2U32 *size, color *background)
 {
 	ui_node *node = NewNode(&mainUi);
 	
-	// NOTE(Ecy): this works like push and pop id
+	// NOTE(Xrhoys): this works like push and pop id
 	if(mainUi.currentContextNode)
 	{
 		node->parent = mainUi.currentContextNode;
@@ -56,15 +54,15 @@ UIFrameBegin(char *title, u32 titleSize, v2U32 *pos, v2U32 *size, color *backgro
 	
 	ui_node *titleNode = NewNode(&mainUi);
 	
-	// NOTE(Ecy): those are RELATIVE positions
+	// NOTE(Xrhoys): those are RELATIVE positions
 	titleNode->type   = UI_NODE_TEXT;
-	// NOTE(Ecy): leaves 5 pixels from the edges
-	// TODO(Ecy): calculate the size instead
+	// NOTE(Xrhoys): leaves 5 pixels from the edges
+	// TODO(Xrhoys): calculate the size instead
 	titleNode->left   = node->left + 5;
 	titleNode->top    = node->top + 5;
 	titleNode->background = &DEFAULT_TEXT_COLOR;
 	
-	// TODO(Ecy): use a linear allocator instead of hardcoded array
+	// TODO(Xrhoys): use a linear allocator instead of hardcoded array
 	memcpy(titleNode->title, title, titleSize);
 	titleNode->titleSize = titleSize;
 	
@@ -92,10 +90,21 @@ InitFont(app_state *state, font_engine *engine, char* filename)
 	
 	u8 *textureData = (u8*)fontFile.contents;
 	textureData += sizeof(asset_font);
+
+	glGenTextures(1, &texture);
 	
-	MakeTexture(1, &texture);
+	// TODO(Xrhoys): is this a behavior specific to opengl? 
+	// You probably need to generate before use if you want to use multiple textures: texImage2D etc.
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-	PushDataToTexture(texture, engine->asset.width, engine->asset.height, textureData);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, engine->asset.width, engine->asset.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 
+				 textureData);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	
 	engine->textureId = texture;
 	
 	state->DEBUGPlatformFreeFileMemory(NULL, fontFile.contents);
@@ -117,7 +126,7 @@ DebugRenderText(render_group *group, char *buffer, u32 bufferSize,
 		char currentCharacter = buffer[index];
 		if(currentCharacter == ' ')
 		{
-			// TODO(Ecy): the space character width should be described in the asset file instead
+			// TODO(Xrhoys): the space character width should be described in the asset file instead
 			currentXCursor += g_fontEngine.asset.height * 0.2f * scale;
 			continue;
 		}
@@ -147,11 +156,13 @@ InitApp(app_state *appContext)
 	app_keyboard_input *keyboardInput = appContext->keyboards[0];
 	app_pointer_input  *pointerInput  = appContext->pointers[0];
 	
-	LoadVideoContext(&decoder, "data/sample.mp4");
-	InitFont(appContext, &g_fontEngine, "data/asset_data");
+	InitRenderer();
+	InitFont(appContext, &g_fontEngine, ASSET_DATA);
+	
+	LoadVideoContext(&decoder, SAMPLE_DATA);
 	
 	{
-		// NOTE(Ecy): not sure if this is the best solution, but for the time being, 
+		// NOTE(Xrhoys): not sure if this is the best solution, but for the time being, 
 		// it removes app_state from PushRect render queue calls
 		uiRenderGroup.appContext = appContext;
 		debugRenderGroup.appContext = appContext;
@@ -162,7 +173,7 @@ InitApp(app_state *appContext)
 	}
 	
 	{
-		// TODO(Ecy): until it becomes a problem ...
+		// TODO(Xrhoys): fixed size until until it becomes a problem ...
 		debugRenderGroup = CreateRenderGroup(appContext, &g_mainArena, Megabytes(1), Megabytes(1));
 		uiRenderGroup    = CreateRenderGroup(appContext, &g_mainArena, Megabytes(1), Megabytes(1));
 	}
@@ -174,23 +185,23 @@ InitApp(app_state *appContext)
 }
 
 internal void
-UpdateApp(app_state *appContext)
+UpdateAndRenderApp(app_state *appContext)
 {
 	app_keyboard_input *keyboardInput = appContext->keyboards[0];
 	app_pointer_input  *pointerInput  = appContext->pointers[0];
-	
+#if DEBUG
 	{
-		// NOTE(Ecy): that is not good ... should not be reseted at this stage
+		// NOTE(Xrhoys): that is not good ... should not be reset at this stage
 		debugRenderGroup.vertexCount = 0;
 		debugRenderGroup.indexCount = 0;
 		
 		char buffer[256];
-		// TODO(Ecy): remove this horrible thing here, and also stdio
-		u32 bytesWritten = sprintf(buffer, "Frametime: %.2fms\n", appContext->frameTime * 1000.0f);
+		// TODO(Xrhoys): remove sprintf , but it's for debugging so it's ok here, and also stdio
+		u32 bytesWritten = sprintf(buffer, "Fps: %.2f\n", 1000.0f / appContext->frameTime);
 		DebugRenderText(&debugRenderGroup, buffer, bytesWritten, 
 						appContext->width - 300.0f, appContext->height - 100.0f, 0.3f, GOLD);
 		
-		// NOTE(Ecy): disply current key
+		// NOTE(Xrhoys): disply current key
 		char *cursor = buffer;
 		for(u32 index = 0;
 			index < KEY_COUNT;
@@ -209,6 +220,7 @@ UpdateApp(app_state *appContext)
 		DebugRenderText(&debugRenderGroup, buffer, bytesWritten, 
 						100.0f, appContext->height - 100.0f, 0.3f, GOLD);
 	}
+#endif
 
 	{
 		uiRenderGroup.vertexCount = 0;
@@ -218,7 +230,7 @@ UpdateApp(app_state *appContext)
 		color mainFrameBackground = RED;
 		color background = BLUE;
 		{
-			// NOTE(Ecy): test im mode gui
+			// NOTE(Xrhoys): test imgui
 			if(UIFrameBegin("parent", 6, &mainFramePos, &mainFrameSize, &mainFrameBackground))
 			{
 				if(IsUiClicked(pointerInput, &mainUi))
@@ -237,7 +249,7 @@ UpdateApp(app_state *appContext)
 					{
 						background = GOLD;
 						
-						// NOTE(Ecy): experimental drag and drop
+						// NOTE(Xrhoys): experimental drag and drop
 						
 					}
 					
@@ -252,7 +264,7 @@ UpdateApp(app_state *appContext)
 			index < mainUi.nodeCount;
 			++index)
 		{
-			// TODO(Ecy): order node list for Z depth testing, then use mainUi.nodes instead
+			// TODO(Xrhoys): order node list for Z depth testing, then use mainUi.nodes instead
 			ui_node *node = &mainUi._nodes[index];
 
 			v4 color = RGBToFloat(*node->background);
@@ -273,7 +285,7 @@ UpdateApp(app_state *appContext)
 				
 				default:
 				{
-					// NOTE(Ecy): impossible code path
+					// NOTE(Xrhoys): impossible code path
 					Assert(false);
 				}break;
 			}
@@ -284,8 +296,89 @@ UpdateApp(app_state *appContext)
 
 	if(decoder.isLoaded)
 	{
-		UpdateDecode(&decoder);
-		PushDataToTextureRGB(g_bgTexture, decoder.codecContext->width, decoder.codecContext->height, 
-						  decoder.pFrameRGB->data[0]);
+		if(decoder.frameCount < 2)
+		{
+			// NOTE(Xrhoys): select available decoding frame from pool
+			for(u32 index = 0;
+				index < 1;
+				++index)
+			{
+				video_decode_unit *unit = &decoder.framePool[index];
+				if(unit->frameId == -1)
+				{
+					fprintf(stderr, "debug1\n");
+					if(av_read_frame(decoder.formatContext, unit->packet) >= 0)
+					{
+						fprintf(stderr, "debug2\n");
+						if(unit->packet->stream_index == decoder.streamIndex)
+						{
+							fprintf(stderr, "debug3\n");
+							//Decode(decoder);
+							QueueThreadedWork(&threadQueue, (thread_func_t)DecodeThreaded, unit);
+							decoder.frameCount++;
+						}
+					}
+					break;
+				}
+				
+			}
+			
+		}
+		
+#if 0
+		// NOTE(Xrhoys): Look for the next frame to render: displayedFrame
+		int findFrameId = decoder.displayedFrameId + 1;
+		video_decode_unit *selectedFrame = nullptr;
+		{
+			//fprintf(stderr, "sframe %d, count: %d, displayedFrameId: %d \n", selectedFrame, decoder.frameCount, decoder.displayedFrameId);
+
+#if 0			
+			if(findFrameId < decoder.frameCount + decoder.displayedFrameId)
+			{
+				break;
+			}
+#endif
+
+			for(u32 index = 0;
+				index < DECODE_QUEUE_SIZE;
+				++index)
+			{
+				video_decode_unit *unit = &decoder.framePool[index];
+				if(unit->isReady && unit->frameId == findFrameId)
+				{
+					//fprintf(stderr, "isReady %d, frameId %d\n", unit->isReady, unit->frameId);
+					selectedFrame = unit;
+					break;
+				}
+			}
+		}
+		
+		if(selectedFrame)
+		{
+			fprintf(stderr, "selecting frame %d\n", selectedFrame->frameId);
+			glEnable(GL_TEXTURE_EXTERNAL_OES);
+			glBindTexture(GL_TEXTURE_EXTERNAL_OES, g_bgTexture);
+			glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, selectedFrame->eglImage);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			
+			eglDestroyImageKHR(eglDisplay, selectedFrame->eglImage);
+			
+			selectedFrame->isReady = false;
+			selectedFrame->frameId = -1;
+			
+			av_packet_unref(selectedFrame->packet);
+			av_frame_unref(selectedFrame->frame);
+		}
+#endif
+
+		//UpdateDecode(&decoder);
+		// TODO(Xrhoys): to move to renderer files
+		// glBindTexture(GL_TEXTURE_2D, g_bgTexture);
+		// glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, decoder.codecContext->width, decoder.codecContext->height, 0, GL_RGB,
+		// 			 GL_UNSIGNED_BYTE, decoder.pFrameRGB->data[0]);
+		// glGenerateMipmap(GL_TEXTURE_2D);
 	}
+
+	Render();
 }

@@ -9,37 +9,63 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 #include <stdio.h>
 
 #include "linux_main.h"
 
-// TODO(Ecy): to exclude with proper platform code
+global EGLDisplay eglDisplay = {};
+global EGLSurface eglSurface = {};
+
+// TODO(Xrhoys): remove this global variable
+global linux_work_queue threadQueue = {};
+
+// TODO(Xrhoys): to exclude with proper platform code
 #include "app.cpp"
 
-// NOTE(Ecy): X11 globals, thsoe need to be global variable
+// NOTE(Xrhoys): X11 globals, thsoe need to be global variable
 global Window                 root;
 global Window                 window;
 global Display                *xdisplay;
 global XSetWindowAttributes   swa;
 global u32                    root_w, root_h, root_border_width, root_depth;
 
+global u64       g_perfCount;
+global u64       g_bootCounter;
+global u64       g_lastCounter;
+global u64       lastCycleCount;
+global r64       cyclesPerFrame;
+
 char buffertest[256];
 
-inline u32 
+inline u64
 GetTicks()
 {
-  u64 ticks = 0;
-  u32 a, d;
-  asm volatile("rdtsc" : "=a" (a), "=d" (d));
+  u32 a, d = 0;
+//   asm volatile("rdtsc" : "=a" (a), "=d" (d));
 
-  return a;
+  return d << 32 | a;
+}
+
+internal r32
+GetSecondsElapsed(u64 start, u64 end)
+{
+	r64 endTime   = (r64)end;
+    r64 startTime = (r64)start;
+	r64 perfCount = (r64)g_perfCount;
+	r32 result    = (r32)((endTime - startTime) / perfCount);
+    
+    return result;
 }
 
 internal
 DEBUG_CLOCK_GET_TIME(LinuxGetLastElapsed)
 {
-	return 0.0f;
+	u64 ticks = GetTicks();
+	r32 elapsed = GetSecondsElapsed(g_lastCounter, ticks);
+	
+	return elapsed;
 }
 
 internal
@@ -57,7 +83,7 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(LinuxWriteEntireFile)
 
 	if(fd == -1) 
 	{
-		// TODO(Ecy): handle file open error
+		// TODO(Xrhoys): handle file open error
 		return false;
 	}
 
@@ -65,7 +91,7 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(LinuxWriteEntireFile)
 	if(bytesWritten == -1)
 	{
 		close(fd);
-		// TODO(Ecy): handle file write error
+		// TODO(Xrhoys): handle file write error
 		return false;
 	}
 	
@@ -83,13 +109,13 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(LinuxReadEntireFile)
 
 	if(fd == -1) 
 	{
-		// TODO(Ecy): handle file open error
+		// TODO(Xrhoys): handle file open error
 	}
 
 	struct stat st;
 	stat(filename, &st);
 
-	// TODO(Ecy): investigate on the off_t size, this could vary per machine
+	// TODO(Xrhoys): investigate on the off_t size, this could vary per machine
 	off_t size = st.st_size;
 
 	u8 *buffer;
@@ -101,7 +127,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(LinuxReadEntireFile)
 
 		if(bytesRead != size)
 		{
-			// TODO(Ecy): handle file read error
+			// TODO(Xrhoys): handle file read error
 		}
 	}
 
@@ -142,10 +168,10 @@ ProcessEvent(app_state *appContext, XEvent *xev, Atom *wmDeleteMessage, app_keyb
 	bool isDown = true;
 
 	XKeyEvent *keyEvent = (XKeyEvent*)xev;
-	// NOTE(Nico): this is weird but necessary for key lookup...
+	// NOTE(Xrhoys): this is weird but necessary for key lookup...
 	XLookupString(keyEvent,keytext,255, &keysym,0);
 
-	// NOTE(Ecy): do not call printf here, it will cause segfault or being ignored
+	// NOTE(Xrhoys): do not call printf here, it will cause segfault or being ignored
 	switch (xev->type) {
 		case KeyPress:
 		{
@@ -373,73 +399,7 @@ int main(int argc, char *argv[]) {
 	XSync(xdisplay, window);
 	XStoreName(xdisplay, window, "RPI Emulation");
 	
-	app_keyboard_input keyInputs[2] = {};
-	app_keyboard_input *oldKeyInput = &keyInputs[0];
-	app_keyboard_input *newKeyInput = &keyInputs[1];
-	
-	app_pointer_input pointerInputs[2] = {};
-	app_pointer_input *oldPointerInput = &pointerInputs[0];
-	app_pointer_input *newPointerInput = &pointerInputs[1];
-	
-	app_state g_state;
-	{
-		g_state.running = true;
-		
-		g_state.clock = 0;
-		g_state.frameTime = 0;
-		g_state.getTime = LinuxGetLastElapsed;
-		
-		// NOTE(Ecy): needs to set at runtime + dynamic with resize event
-		XWindowAttributes winAttr;
-		XGetWindowAttributes(xdisplay, window, &winAttr);
-		g_state.width = winAttr.width;
-		g_state.height = winAttr.height;
-		
-		g_state.DEBUGPlatformReadEntireFile  = LinuxReadEntireFile;
-		g_state.DEBUGPlatformWriteEntireFile = LinuxWriteEntireFile;
-		g_state.DEBUGPlatformFreeFileMemory  = LinuxFreeFile;
-		
-		g_state.permanentStorageSize = Megabytes(256);
-		g_state.permanentStorage = malloc(g_state.permanentStorageSize);
-		if(!g_state.permanentStorage)
-		{
-			// TODO(Ecy): log errors
-			return -1;
-		}
-		g_state.transientStorageSize = Gigabytes(1);
-		g_state.transientStorage     = malloc(g_state.transientStorageSize);
-		if(!g_state.transientStorage)
-		{
-			// TODO(Ecy): log errors
-			return -1;
-		}
-		
-		g_state.keyboards[0] = oldKeyInput;
-		g_state.pointers[0]  = oldPointerInput;
-		
-		g_state.keyboards[0]->isConnected = true;
-		g_state.pointers[0]->isConnected = true;
-		
-		for(u32 index = 0;
-			index < KEY_COUNT;
-			index++)
-		{
-			g_state.keyboards[0]->keys[index].startHoldTime = INFINITY;
-		}
-		
-		for(u32 index = 0;
-			index < MOUSE_BUTTON_COUNT;
-			index++)
-		{
-			g_state.pointers[0]->buttons[index].startHoldTime = INFINITY;
-		}
-	}
-	
-#ifdef BE_OPENGL
-	
 	// EGL
-	EGLDisplay eglDisplay = {};
-	EGLSurface eglSurface = {};
 	{
 		eglDisplay = eglGetDisplay((EGLNativeDisplayType)xdisplay);
 		if (eglDisplay == EGL_NO_DISPLAY) {
@@ -494,91 +454,92 @@ int main(int argc, char *argv[]) {
 		eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext);
 	}
 	
-	InitRenderer();
-#elif BE_VULKAN
-	vk_render_context renderContext = {};
-	
-	char *extensions[32];
-	u32 extensionCount = 0;
-	extensions[extensionCount++] = "VK_KHR_xlib_surface";
-	
-	CreateDeviceContext(&renderContext, extensions, &extensionCount);
-	
-	VkResult result;
-	VkXlibSurfaceCreateInfoKHR createSurfaceInfo =
 	{
-		VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
-		0,
-		0,
-		xdisplay,
-		window,
-	};
-	
-	result = vkCreateXlibSurfaceKHR(renderContext.instance, &createSurfaceInfo, nullptr, &renderContext.surface);
-	CheckRes(result);
-	
-	// Check for WSI support
-	VkBool32 res;
-	vkGetPhysicalDeviceSurfaceSupportKHR(renderContext.physicalDevice, renderContext.queueFamily, 
-										 renderContext.surface, &res);
-	if(res != VK_TRUE)
-	{
-		// WSI not supported
-	}
-	
-	VkSurfaceFormatKHR formats[16];
-	u32 formatCount = 0;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(renderContext.physicalDevice, renderContext.surface, &formatCount, nullptr);
-	if(formatCount > 0)
-	{
-		vkGetPhysicalDeviceSurfaceFormatsKHR(renderContext.physicalDevice, renderContext.surface, &formatCount, formats);
-	}
-	
-	renderContext.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-	VkPresentModeKHR presentModes[16];
-	u32 presentModeCount = 0;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(renderContext.physicalDevice, renderContext.surface, 
-											  &presentModeCount, nullptr);
-	if(presentModeCount > 0)
-	{
-		vkGetPhysicalDeviceSurfacePresentModesKHR(renderContext.physicalDevice, renderContext.surface, 
-												  &presentModeCount, presentModes);
-	}
-	
-	renderContext.surfaceFormat = formats[0];
-	for(u32 formatIndex = 0;
-		formatIndex < formatCount;
-		++formatIndex)
-	{
-		if(formats[formatIndex].format == VK_FORMAT_B8G8R8A8_UNORM && 
-		   formats[formatIndex].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR)
+		for(u32 index = 0;
+			index < THREAD_WORK_COUNT;
+			++index)
 		{
-			renderContext.surfaceFormat = formats[formatIndex];
-			break;
+			linux_work_unit *unit = &threadQueue.queue[index];
+			i32 ret = pthread_create(&unit->threadId, NULL, ProcessThreadWork, &threadQueue);
+			Assert(ret == 0);
+			//ret = pthread_detach(unit->threadId);
+			//Assert(ret == 0);
 		}
 	}
 	
-	CreateSwapchain(&renderContext);
-	CreatePipeline(&renderContext, &g_state);
+	app_keyboard_input keyInputs[2] = {};
+	app_keyboard_input *oldKeyInput = &keyInputs[0];
+	app_keyboard_input *newKeyInput = &keyInputs[1];
 	
+	app_pointer_input pointerInputs[2] = {};
+	app_pointer_input *oldPointerInput = &pointerInputs[0];
+	app_pointer_input *newPointerInput = &pointerInputs[1];
+	
+	app_state g_state;
 	{
-		video_decode_vulkan vulkanDecoder = {};
-		//LoadVideoContext(&decoder, SAMPLE_DATA);
-		LoadVulkanVideoContext(&vulkanDecoder, "data/sample.mp4");
+		g_state.running = true;
 		
-		InitVideoDecoder(&renderContext, &vulkanDecoder);
-		//debug_read_file_result mp4File = appContext->DEBUGPlatformReadEntireFile(NULL, "data/sample.mp4");
+		u64 counter = GetTicks();
+		g_bootCounter = counter;
+		g_lastCounter = counter;
+		// TODO(Ecy); this is not correct, but gives a rough idea of time
+		g_perfCount   = 10000000;  
+
+		g_state.clock = 0;
+		g_state.frameTime = 0;
+		g_state.getTime = LinuxGetLastElapsed;
 		
-		//MP4VideoDemuxer(&mp4File);
+		// NOTE(Xrhoys): needs to set at runtime + dynamic with resize event
+		XWindowAttributes winAttr;
+		XGetWindowAttributes(xdisplay, window, &winAttr);
+		g_state.width = winAttr.width;
+		g_state.height = winAttr.height;
+		
+		g_state.DEBUGPlatformReadEntireFile  = LinuxReadEntireFile;
+		g_state.DEBUGPlatformWriteEntireFile = LinuxWriteEntireFile;
+		g_state.DEBUGPlatformFreeFileMemory  = LinuxFreeFile;
+
+		g_state.permanentStorageSize = Megabytes(256);
+		g_state.permanentStorage = malloc(g_state.permanentStorageSize);
+		if(!g_state.permanentStorage)
+		{
+			// TODO(Xrhoys): log errors
+			return -1;
+		}
+		g_state.transientStorageSize = Gigabytes(1);
+		g_state.transientStorage     = malloc(g_state.transientStorageSize);
+		if(!g_state.transientStorage)
+		{
+			// TODO(Xrhoys): log errors
+			return -1;
+		}
+
+		g_state.keyboards[0] = oldKeyInput;
+		g_state.pointers[0]  = oldPointerInput;
+		
+		g_state.keyboards[0]->isConnected = true;
+		g_state.pointers[0]->isConnected = true;
+		
+		for(u32 index = 0;
+			index < KEY_COUNT;
+			index++)
+		{
+			g_state.keyboards[0]->keys[index].startHoldTime = INFINITY;
+		}
+		
+		for(u32 index = 0;
+			index < MOUSE_BUTTON_COUNT;
+			index++)
+		{
+			g_state.pointers[0]->buttons[index].startHoldTime = INFINITY;
+		}
 	}
-	
-#endif
 	
 	InitApp(&g_state);
 	
 	while(g_state.running)
 	{
-		// NOTE(Nico): Reset input
+		// NOTE(Xrhoys): Reset input
 		{
 			*newKeyInput     = {};
 			*newPointerInput = {};
@@ -615,7 +576,7 @@ int main(int argc, char *argv[]) {
 			newPointerInput->sensY  = oldPointerInput->sensY;
 			newPointerInput->sensZ  = oldPointerInput->sensZ;
 			
-			// TODO: (Nico) switch to linux
+			// TODO: (Xrhoys) switch to linux
 			i32 root_x, root_y, win_x, win_y;
 			u32 mask;
 			Window dummy;
@@ -635,7 +596,7 @@ int main(int argc, char *argv[]) {
 		if (!g_state.running) 
 			break;
 
-		// NOTE(Ecy): process inputs. For the time being only the first one of each type. 
+		// NOTE(Xrhoys): process inputs. For the time being only the first one of each type. 
 		// Not sure if the dual input buffer will be useful ..
 		{
 			g_state.keyboards[0] = newKeyInput;
@@ -649,22 +610,24 @@ int main(int argc, char *argv[]) {
 			newPointerInput = oldPointerInput;
 			oldPointerInput = tempPointerInput;
 		}
-		
-		UpdateApp(&g_state);
 
-#ifdef BE_OPENGL
-		Render();
-		// TODO(Ecy): opengl es render context
+		
+		UpdateAndRenderApp(&g_state);
+		
 		eglSwapBuffers(eglDisplay, eglSurface);
-#elif BE_VULKAN
-		Render(&renderContext, &g_state);
-#endif
 		
 		// Timer update
 		{
-			// NOTE(Ecy): placeholder
-			g_state.clock = GetTicks();
-			g_state.frameTime = GetTicks();
+			u64 endCycleCounter = GetTicks();
+			u64 cyclesElapsed   = endCycleCounter - lastCycleCount;
+			cyclesPerFrame      = cyclesElapsed / (1000.0f * 1000.0f);
+			
+			// NOTE(Xrhoys): fix this
+			g_state.clock       = endCycleCounter;
+			g_state.frameTime   = LinuxGetLastElapsed();
+			
+			lastCycleCount      = endCycleCounter;
+			g_lastCounter       = endCycleCounter;
 		}
 		
 	}

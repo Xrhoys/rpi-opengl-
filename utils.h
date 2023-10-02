@@ -3,11 +3,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#if 0
-#include <byteswap.h>
-#endif
-
-// NOTE(Ecy): linear/bump allocator
+// NOTE(Xrhoys): linear/bump allocator
 struct memory_arena
 {
 	u8  *_start;
@@ -47,27 +43,6 @@ LinearAlloc(memory_arena *arena, u32 size)
 	arena->cursor    += size;
 	
 	return returnCursor;
-}
-
-inline u32
-_byteSwapU16(u16 b)
-{
-	return _byteswap_ushort(b);
-	//return bswap_16(b);
-}
-
-inline u32
-_byteSwapU32(u32 b)
-{
-	return _byteswap_ulong(b);
-	//return bswap_32(b);
-}
-
-inline u64
-_byteSwapU64(u64 b)
-{
-	return _byteswap_uint64(b);
-	//return bswap_64(b);
 }
 
 #endif //UTILS_H
