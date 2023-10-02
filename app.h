@@ -3,13 +3,15 @@
 #ifndef APP_H
 #define APP_H
 
+// NOTE(Ecy): to remove
+#include <stdlib.h>
+
 #include "platform.h"
 #include "math.h"
 #include "video_decode.h"
-#include "video_decode_vulkan.h"
 #include "asset_build.h"
 #include "renderer.h"
-#include "renderer_vulkan.h"
+
 #include "utils.h"
 
 #define Kilobytes(n) n * 1024

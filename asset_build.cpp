@@ -1,13 +1,23 @@
 #include "platform.h"
 
+#include "app.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
 #define STB_TRUETYPE_IMPLEMENTATION 1
 #include "stb_truetype.h"
 
+#if LINUX
+#include "linux_main.h"
+#else
+#include "win32_main.h"
+#endif
+
 #include "utils.h"
+
 #include "video_decode.h"
+#include "video_decode.cpp"
 
 #define MINIMP4_IMPLEMENTATION
 #define MP4D_HEVC_SUPPORTED 1
@@ -19,6 +29,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include "linux_main.h"
 
 static
 DEBUG_PLATFORM_FREE_FILE_MEMORY(FreeFile)
@@ -94,6 +105,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(ReadEntireFile)
 #elif WIN32
 
 #include <windows.h>
+#include "win32_main.h"
 
 static
 DEBUG_PLATFORM_FREE_FILE_MEMORY(FreeFile)
@@ -372,7 +384,8 @@ ParseDemuxMP4(u8 **start, u8 *end)
 			box.lengthSizeMinusOne = data & 0x3;
 			
 			box.numOfArrays = *subCursor++;
-			
+
+#if 0			
 			for(u32 index = 0;
 				index < box.box.numOfArrays;
 				++index)
@@ -390,6 +403,7 @@ ParseDemuxMP4(u8 **start, u8 *end)
 					bit(8*nalUnitLength) nalUnit;
 				}
 			}
+#endif
 		}break;
 		
 		case DEMUX_MP4_BOX_UDTA:
@@ -543,7 +557,8 @@ int main()
 
 		WriteEntireFile(NULL, "asset_data", fontData.width * fontData.height * 4 + sizeof(asset_font), pixelMapBuffer);
 	}
-	
+
+#if 0	
 	{
 		debug_read_file_result file = ReadEntireFile(NULL, "data/sample.mp4");
 		
@@ -555,6 +570,17 @@ int main()
 			ParseDemuxMP4(&cursor, end);
 		}
 		
+	}
+#endif
+
+	{
+		video_decode decoder = {};
+		LoadVideoContext(&decoder, "data/sample.mp4");
+		
+		int b = 0;
+		AVStream *stream = &decoder->formatContext.streams[decoder->streamIndex];
+		u32 size = ;
+		WriteEntireFile(NULL, "video_stream", 100, stream->priv_data);
 	}
 }
 

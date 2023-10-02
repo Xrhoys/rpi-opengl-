@@ -3,8 +3,6 @@
 #include "renderer.cpp"
 #include "video_decode.cpp"
 
-#include "video_decode_vulkan.cpp"
-
 #define FONT_FILE "data/asset_data"
 #define SAMPLE_DATA "data/sample.mp4"
 

@@ -34,6 +34,7 @@ struct asset_font
 	u32 width;
 };
 
+#if 0
 struct INPUT_BUFFER
 {
     u8  *buffer;
@@ -47,5 +48,6 @@ static int read_callback(int64_t offset, void *buffer, u64 size, void *token)
     memcpy(buffer, buf->buffer + offset, to_copy);
     return to_copy != size;
 }
+#endif
 
 #endif //ASSET_BUILD_H
